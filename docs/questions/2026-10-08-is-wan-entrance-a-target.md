@@ -237,6 +237,8 @@ debian-router WAN NIC    ← ラボ上の「WAN」
 - **NATはFirewallではない。** 外からの通信を防いでいるのは、通信の状態を見て判断するFirewallの働き。
 - **内側からの攻撃もある。** WANだけでなく、LAN側や外向きの通信も含めて多層で守る。
 
+関連する疑問：[IPアドレスを知られると侵入されるのか（Tailscale・VMのIP）](2026-10-08-is-knowing-ip-address-dangerous.md)
+
 ---
 
 ## 参考資料
