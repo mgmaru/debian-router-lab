@@ -36,8 +36,8 @@
 
 - [x] Router LAN側に `10.0.0.1/24` を一時設定
 - [x] Clientに `10.0.0.10/24` を一時設定
-- [ ] Router / ClientのIP設定を `/etc/network/interfaces` などへ記述して永続化
-- [ ] ClientのDefault Gatewayを `10.0.0.1` に設定
+- [x] Router / ClientのIP設定を `/etc/network/interfaces` などへ記述して永続化
+- [x] ClientのDefault Gatewayを `10.0.0.1` に設定
 - [x] Router ↔ Client間で相互 `ping` 確認
 - [ ] `ip addr` を理解
 - [ ] `ip link` を理解

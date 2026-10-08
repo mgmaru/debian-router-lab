@@ -127,6 +127,7 @@ debian-router-lab/
 │   │   └── router-boundary.md
 │   │
 │   ├── concepts/
+│   │   ├── persistent-config.md
 │   │   ├── interface.md
 │   │   ├── ip-forwarding.md
 │   │   ├── routing.md
@@ -135,13 +136,17 @@ debian-router-lab/
 │   │   ├── dhcp.md
 │   │   └── dns.md
 │   │
-│   └── decisions/
-│       ├── README.md
-│       ├── 001-use-debian.md
-│       ├── 002-use-vmware.md
-│       ├── 003-hardware-later.md
-│       ├── 004-support-amd64-and-arm64.md
-│       └── 005-ssh-via-jump-host.md
+│   ├── decisions/
+│   │   ├── README.md
+│   │   ├── 001-use-debian.md
+│   │   ├── 002-use-vmware.md
+│   │   ├── 003-hardware-later.md
+│   │   ├── 004-support-amd64-and-arm64.md
+│   │   ├── 005-ssh-via-jump-host.md
+│   │   └── 006-use-ifupdown.md
+│   │
+│   └── tools/
+│       └── editors.md
 │
 ├── labs/
 │   ├── 01-network-interface/
@@ -172,6 +177,7 @@ debian-router-lab/
 │   │
 │   ├── debian/
 │   │   ├── README.md
+│   │   ├── network.md
 │   │   └── packages.txt
 │   │
 │   └── remote-access/
@@ -181,6 +187,9 @@ debian-router-lab/
 ├── configs/
 │   ├── sysctl/
 │   ├── network/
+│   │   ├── README.md
+│   │   ├── debian-router.interfaces
+│   │   └── debian-client.interfaces
 │   ├── nftables/
 │   ├── dhcp/
 │   └── dns/
@@ -261,6 +270,12 @@ labs/03-routing/
 - ハードウェア選定を後回しにする理由
 
 1つのADRには1つの決定だけを記録し、一覧は `docs/decisions/README.md` にまとめます。
+
+### `docs/tools/`
+
+エディタやコマンドなど、ツールの使い方を記録します。
+
+ネットワークの概念（`docs/concepts/`）や環境の再現手順（`environment/`）とは分けて、繰り返し参照するリファレンスとして置きます。
 
 ---
 

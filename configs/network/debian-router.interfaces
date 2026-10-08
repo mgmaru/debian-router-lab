@@ -1,0 +1,14 @@
+source /etc/network/interfaces.d/*
+
+# The loopback network interface
+auto lo
+iface lo inet loopback
+
+# The primary network interface（外側：DHCP のまま）
+allow-hotplug ens33
+iface ens33 inet dhcp
+
+# 内側（LAN）：静的 IP
+auto ens37
+iface ens37 inet static
+    address 10.0.0.1/24

@@ -1,0 +1,11 @@
+source /etc/network/interfaces.d/*
+
+# The loopback network interface
+auto lo
+iface lo inet loopback
+
+# The primary network interface
+auto ens33
+iface ens33 inet static
+    address 10.0.0.10/24
+    gateway 10.0.0.1

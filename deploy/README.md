@@ -8,7 +8,7 @@ VMと実機で基本構造は変わらない。
 
 ```text
 ens33 → WAN
-ens34 → LAN
+ens37 → LAN
 ```
 
 ### 実機

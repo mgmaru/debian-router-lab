@@ -6,48 +6,28 @@
 
 ## 現在地
 
-現在、VMnet2上で以下の一時設定まで完了している。
+Router / ClientのIP設定を `/etc/network/interfaces` に書き、永続化した（[labs/01-network-interface](../labs/01-network-interface/README.md)）。
 
 ```text
-Router LAN : 10.0.0.1/24
-Client     : 10.0.0.10/24
+Router WAN : 192.168.22.129/24（ens33、DHCP）
+Router LAN : 10.0.0.1/24（ens37、静的）
+Client     : 10.0.0.10/24（ens33、静的、ゲートウェイ 10.0.0.1）
 ```
 
-Router VMとClient VMの相互Pingも成功済み。
+現時点でできていること・いないこと：
+
+| 通信 | 状態 | 理由 |
+|---|---|---|
+| クライアント VM → ルーター VM（10.0.0.1） | ✅ できる | 同じネットワーク内 |
+| クライアント VM → ルーター VM の外側の IP | ✅ できる | ルーター VM 自身のアドレス宛てなので、ルーター VM が直接返事をする |
+| クライアント VM → インターネット | ❌ まだできない | ルーター VM が「受け取った通信を中継する」設定をしていない |
 
 ## 次にやること
 
-次回はまず、
+ルーターとして機能させるため、次の順で進める。
 
-> **Router / ClientのIP設定を永続化する**
-
-ことから進める。
-
-候補はDebianの、
-
-```text
-/etc/network/interfaces
-```
-
-への設定記述。
-
-永続化後にVMを再起動し、
-
-```bash
-ip -br addr
-ip route
-ping
-```
-
-で設定が保持されていることを確認する。
-
-その後、
-
-1. `ip route`
-2. `ip neigh`
-3. `tcpdump`
-4. ClientのDefault Gateway設定
-5. IP Forwarding
-6. NAT
-
-の順で、本格的なルーター学習へ進む。
+1. `ip route` / `ip neigh` / `tcpdump` を理解する
+2. IP Forwarding（[labs/02-ip-forwarding](../labs/02-ip-forwarding/README.md)）
+3. NAT（[labs/04-nat](../labs/04-nat/README.md)）
+4. ClientのDNS設定（[labs/07-dns](../labs/07-dns/README.md)）
+5. DHCPサーバー（任意、[labs/06-dhcp](../labs/06-dhcp/README.md)）

@@ -2,6 +2,8 @@
 
 VMのスペックは [environment/vmware](../vmware/README.md) を参照。
 
+IPアドレスの永続化（`/etc/network/interfaces`）の手順は [network.md](network.md) を参照。
+
 ## debian-router
 
 使用したISO：
