@@ -136,9 +136,12 @@ debian-router-lab/
 │   │   └── dns.md
 │   │
 │   └── decisions/
+│       ├── README.md
 │       ├── 001-use-debian.md
 │       ├── 002-use-vmware.md
-│       └── 003-hardware-later.md
+│       ├── 003-hardware-later.md
+│       ├── 004-support-amd64-and-arm64.md
+│       └── 005-ssh-via-jump-host.md
 │
 ├── labs/
 │   ├── 01-network-interface/
@@ -167,9 +170,13 @@ debian-router-lab/
 │   │   ├── README.md
 │   │   └── network-topology.md
 │   │
-│   └── debian/
+│   ├── debian/
+│   │   ├── README.md
+│   │   └── packages.txt
+│   │
+│   └── remote-access/
 │       ├── README.md
-│       └── packages.txt
+│       └── ssh_config.example
 │
 ├── configs/
 │   ├── sysctl/
@@ -200,6 +207,10 @@ debian-router-lab/
 │
 ├── captures/
 │   └── README.md
+│
+├── progress/
+│   ├── README.md
+│   └── todo.md
 │
 ├── .gitignore
 └── LICENSE
@@ -248,6 +259,8 @@ labs/03-routing/
 - Debianを採用した理由
 - VMware Workstationを利用する理由
 - ハードウェア選定を後回しにする理由
+
+1つのADRには1つの決定だけを記録し、一覧は `docs/decisions/README.md` にまとめます。
 
 ---
 
@@ -320,6 +333,7 @@ VMそのものの巨大なファイルはGitに保存せず、
 - VMware Network設定
 - Debian初期設定
 - 必要Package
+- リモート接続（Tailscale / SSH）
 
 などを記録します。
 
@@ -521,6 +535,22 @@ Packet Captureに関するメモやサンプルを管理します。
 
 ---
 
+## `progress/`
+
+進捗とTODOを管理します。
+
+```text
+progress/README.md
+→ 現在地と次にやること
+
+progress/todo.md
+→ Phaseごとのチェックリスト
+```
+
+進捗はこのディレクトリだけで管理し、他のドキュメントにはチェックリストを置きません。
+
+---
+
 # Learning Roadmap
 
 ```text
@@ -704,6 +734,9 @@ scripts/
 
 deploy/
 → 物理マシンへの導入
+
+progress/
+→ 進捗・TODO
 ```
 
 という責務を維持します。
@@ -792,27 +825,4 @@ Internet
 
 # Status
 
-現在は以下のフェーズです。
-
-```text
-[ ] Debian Router VM作成
-[ ] Client VM作成
-[ ] Virtual Network構築
-[ ] Network Interface確認
-[ ] IP Forwarding
-[ ] Routing
-[ ] NAT
-[ ] Firewall
-[ ] DHCP
-[ ] DNS
-[ ] IPv6
-[ ] VLAN
-[ ] VPN
-[ ] Automation
-[ ] routerd
-[ ] Hardware選定
-[ ] deploy設計
-[ ] Physical Routerへの移植
-[ ] 実NICでWAN / LAN接続
-[ ] 実機でRouting / NAT / Firewall確認
-```
+現在地と次にやることは [progress/README.md](progress/README.md)、フェーズごとのチェックリストは [progress/todo.md](progress/todo.md) で管理しています。

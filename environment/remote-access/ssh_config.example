@@ -1,0 +1,16 @@
+# MacBookの ~/.ssh/config に登録する設定例
+# IPアドレスは環境に合わせて置き換える（README.md を参照）
+
+Host windows-home
+    HostName 100.80.124.76
+    User kajih
+
+Host debian-router
+    HostName 192.168.x.x
+    User kajih
+    ProxyJump windows-home
+
+Host debian-client
+    HostName 10.0.0.10
+    User kajih
+    ProxyJump windows-home,debian-router
