@@ -27,8 +27,8 @@
 - [x] Router VMの2枚目NICをVMnet2へ接続
 - [x] Client VMのNICをVMnet2へ変更
 - [x] Router VM / Client VM双方でNICを確認
-- [ ] Router VMからClient VMへSSH接続確認
-- [ ] MacBookの `~/.ssh/config` にWindows / Router / Clientを登録
+- [x] Router VMからClient VMへSSH接続確認
+- [x] MacBookの `~/.ssh/config` にWindows / Router / Clientを登録
 - [x] `ssh debian-router` でRouter VMへ接続確認
 - [x] `ssh debian-client` でClient VMへ多段SSH接続確認
 
