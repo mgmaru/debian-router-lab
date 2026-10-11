@@ -112,12 +112,28 @@ kajih@debian-client:~$ ip route get 10.0.0.1
 
 ---
 
+## 検証：`ip neigh` でゲートウェイの MAC を見る（2026-10-11）
+
+### Client VM での実行結果
+
+```text
+kajih@debian-client:/etc/network$ ip neigh
+10.0.0.1 dev ens33 lladdr 00:0c:29:73:2d:6b DELAY
+```
+
+`10.0.0.1`（ゲートウェイ）の MAC アドレスは `00:0c:29:73:2d:6b` だった。これは Router VM の ens37 の MAC と一致する（[labs/01 の `ip a`](../../labs/01-network-interface/README.md#作業前の状態の観察)）。
+
+`8.8.8.8` 宛てのパケットも、**IP の宛先は `8.8.8.8` のまま、MAC の宛先はこの `00:0c:29:73:2d:6b`** にして送られる（直す点 2）。
+
+`ip neigh` の読み方は [docs/concepts/neighbor.md](../concepts/neighbor.md#ip-neigh-の読み方) を参照。
+
+---
+
 ## まだ試していないこと
 
 | コマンド（Client VM） | 予想される結果 | 確かめられること |
 |---|---|---|
 | `ping -c 2 10.0.0.99` | `Destination Host Unreachable` | 範囲内の宛先は、見つからなくてもゲートウェイに回らない（直す点 1） |
-| `ip neigh` | `10.0.0.1` に対応する MAC アドレス（`lladdr 00:0c:29:...`） | ゲートウェイに手渡すときの宛先 MAC（直す点 2） |
 
 ---
 

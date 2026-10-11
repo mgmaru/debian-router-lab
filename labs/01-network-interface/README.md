@@ -150,6 +150,31 @@ default via 192.168.22.2 dev ens33 proto dhcp src 192.168.22.129 metric 1002
 
 ルーティングテーブルの考え方は [what-is-ip-route-and-routing-table.md](../../docs/questions/2026-10-11-what-is-ip-route-and-routing-table.md) を参照。
 
+### 5. 近隣テーブルの観察（Router VM / Client VM）
+
+Router VMとClient VMで `ip neigh` を実行し、近隣テーブルを確認した（2026-10-11）。
+
+```bash
+ip neigh
+```
+
+Router VM：
+
+```text
+kajih@debian-router:~$ ip neigh
+192.168.22.2 dev ens33 lladdr 00:50:56:f9:12:3d STALE
+192.168.22.1 dev ens33 lladdr 00:50:56:c0:00:08 REACHABLE
+10.0.0.10 dev ens37 lladdr 00:0c:29:20:6c:ff STALE
+192.168.22.254 dev ens33 lladdr 00:50:56:fe:ec:fe STALE
+```
+
+Client VM：
+
+```text
+kajih@debian-client:/etc/network$ ip neigh
+10.0.0.1 dev ens33 lladdr 00:0c:29:73:2d:6b DELAY
+```
+
 ## Result
 
 ### 1. LAN側IPの一時設定と疎通確認
@@ -186,6 +211,45 @@ default via 192.168.22.2 dev ens33 proto dhcp src 192.168.22.129 metric 1002
 - デフォルトゲートウェイはens33（WAN側）の1つだけで、ens37には無い（ルーターの内側には `gateway` を書かない、の通り）
 - `metric 1002` は、DHCPクライアント（dhcpcd）が付けた優先度（1000 ＋ インターフェース番号 `2`）。`default` は1行しかないので、今は影響しない
 
+### 5. 近隣テーブルの観察（Router VM / Client VM）
+
+`ip neigh` は、**同じネットワークにいる相手の、IPアドレスとMACアドレスの対応表**（近隣テーブル。IPv4ではARPテーブルとも呼ぶ）を表示する。
+
+1行の読み方と状態（`REACHABLE` / `STALE` / `DELAY` など）の意味は [neighbor.md](../../docs/concepts/neighbor.md#ip-neigh-の読み方) を参照。
+
+Router VMの相手：
+
+| IP | NIC | 相手 | 状態 |
+|---|---|---|---|
+| `192.168.22.2` | ens33 | VMware NAT（Router VMのデフォルトゲートウェイ） | `STALE` |
+| `192.168.22.1` | ens33 | Windows（VMware Network Adapter VMnet8）。SSHの接続元 | `REACHABLE` |
+| `10.0.0.10` | ens37 | Client VM | `STALE` |
+| `192.168.22.254` | ens33 | VMwareのDHCPサーバー（推定。VMwareのNATネットワークでは通常 `.254`） | `STALE` |
+
+Client VMの相手：
+
+| IP | NIC | 相手 | 状態 |
+|---|---|---|---|
+| `10.0.0.1` | ens33 | Router VMのens37（Client VMのデフォルトゲートウェイ） | `DELAY` |
+
+ルーティングテーブルとの関係：
+
+```text
+宛先 8.8.8.8
+    ↓ ルーティングテーブル（ip route）
+次に渡す相手 = 192.168.22.2（ens33 から）
+    ↓ 近隣テーブル（ip neigh）
+192.168.22.2 の MAC = 00:50:56:f9:12:3d
+    ↓
+その MAC 宛てに送る
+```
+
+- Client VMから見た `10.0.0.1` のMAC（`00:0c:29:73:2d:6b`）は、Router VMのens37のMAC（Experiment 2の `ip a`）と一致した。デフォルトゲートウェイに渡すときは、実際にはこのMAC宛てに送っている
+- 近隣テーブルに載るのは、**同じネットワークにいて、最近通信した相手だけ**。`8.8.8.8` のような外の宛先は載らない
+- `192.168.22.1` だけが `REACHABLE` なのは、WindowsからのSSHで今まさに通信しているから
+- Client VMの `DELAY` は、Router VM経由のSSHの通信で、ちょうど使われたところだったため（推定）
+- MACアドレスの先頭 `00:0c:29` はVMwareのVMのNIC、`00:50:56` はVMwareが用意した仮想機器（NAT・DHCP・Windows側のアダプタ）。`00:50:56:c0:00:08` の末尾 `08` はVMnet8を表す
+
 ## Learned
 
 - `ip` コマンドの設定は**カーネルの中だけ**の変更で、再起動で消える
@@ -197,3 +261,4 @@ default via 192.168.22.2 dev ens33 proto dhcp src 192.168.22.129 metric 1002
 - 反映は `ifdown`（書き換え前）→ `ifup`、**最後に必ず再起動して確認**
 - ネットワーク設定の変更は「**今使っている接続を切らない**」意識で。困ったら VM のコンソールから直す
 - **ルーティングテーブル** ＝「宛先ごとの送り方」の一覧。ルーター VM では NIC ごとに自分のネットワークの行があり、`default` は WAN 側（ens33）にだけある
+- **近隣テーブル（`ip neigh`）** ＝ 同じネットワークの相手の IP と MAC の対応表。ルーティングテーブルで決めた「次に渡す相手」の IP を、ここで MAC に変換して送る
