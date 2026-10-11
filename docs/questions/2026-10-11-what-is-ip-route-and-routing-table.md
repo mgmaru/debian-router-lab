@@ -8,6 +8,7 @@
 - [デフォルトゲートウェイとは「同じネットワークで転送先が見つからない場合の送り先」か](2026-10-08-default-gateway-meaning.md)
 - [docs/concepts/routing.md（デフォルトゲートウェイ）](../concepts/routing.md#デフォルトゲートウェイ)
 - [docs/concepts/persistent-config.md（一時的な設定と永続的な設定）](../concepts/persistent-config.md)
+- [NIC 名（`ens33`）と、1 つの NIC に付けられる IP アドレスの数](2026-10-11-nic-name-and-multiple-ip-addresses.md)（追加質問：質問4・5）
 
 ## 疑問
 
