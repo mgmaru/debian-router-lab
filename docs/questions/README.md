@@ -33,6 +33,7 @@
 | [DHCP サーバーのアドレスはどこで分かるのか](2026-10-11-where-to-find-dhcp-server-address.md) | 2026-10-11 |
 | [DHCP はルーターの機能か、DHCP サーバーはどこに・いくつ置くのか](2026-10-11-dhcp-role-and-placement.md) | 2026-10-11 |
 | [DHCP サーバーはどう作るのか：仕組みと実装方針](2026-10-12-how-to-implement-dhcp-server.md) | 2026-10-12 |
+| [DHCP サーバーはどこで動いているのか：VMware・Debian のサービス・実機](2026-10-12-where-dhcp-server-runs.md) | 2026-10-12 |
 
 ## セキュリティ
 
