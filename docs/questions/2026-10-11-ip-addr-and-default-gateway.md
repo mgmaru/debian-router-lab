@@ -7,6 +7,7 @@
 - [docs/concepts/interface.md（`ip a` の読み方）](../concepts/interface.md#ip-a-の読み方)
 - [docs/concepts/routing.md（デフォルトゲートウェイ）](../concepts/routing.md#デフォルトゲートウェイ)
 - [デフォルトゲートウェイとは「同じネットワークで転送先が見つからない場合の送り先」か](2026-10-08-default-gateway-meaning.md)
+- [`ip route` とルーティングテーブルとは何か](2026-10-11-what-is-ip-route-and-routing-table.md)
 
 ## 疑問
 
