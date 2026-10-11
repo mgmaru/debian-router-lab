@@ -7,6 +7,7 @@
 - [`ip route` とルーティングテーブルとは何か](2026-10-11-what-is-ip-route-and-routing-table.md)（質問1〜3）
 - [docs/concepts/interface.md（`ip a` の読み方）](../concepts/interface.md#ip-a-の読み方)
 - [labs/01-network-interface](../../labs/01-network-interface/README.md)
+- [`ip addr del` でアドレスを消すと、何が消えるのか](2026-10-11-what-ip-addr-del-removes.md)（追加質問：質問6）
 
 ## 疑問
 
