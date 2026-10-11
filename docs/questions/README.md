@@ -24,6 +24,14 @@
 | [NIC 名（`ens33`）と、1 つの NIC に付けられる IP アドレスの数](2026-10-11-nic-name-and-multiple-ip-addresses.md) | 2026-10-11 |
 | [`ip addr del` でアドレスを消すと、何が消えるのか](2026-10-11-what-ip-addr-del-removes.md) | 2026-10-11 |
 
+## DHCP
+
+まとまった説明：[dhcp.md](../concepts/dhcp.md)
+
+| 疑問 | 日付 |
+|---|---|
+| [DHCP サーバーのアドレスはどこで分かるのか](2026-10-11-where-to-find-dhcp-server-address.md) | 2026-10-11 |
+
 ## セキュリティ
 
 | 疑問 | 日付 |

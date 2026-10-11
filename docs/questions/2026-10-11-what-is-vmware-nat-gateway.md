@@ -8,6 +8,7 @@
 - [`ip addr` にデフォルトゲートウェイは表示されないのか](2026-10-11-ip-addr-and-default-gateway.md)
 - [docs/concepts/routing.md（ルーター VM に `gateway` を書かなかった理由）](../concepts/routing.md#ルーター-vm-に-gateway-を書かなかった理由)
 - [docs/concepts/dhcp.md](../concepts/dhcp.md)
+- [DHCP サーバーのアドレスはどこで分かるのか](2026-10-11-where-to-find-dhcp-server-address.md)（追加質問：質問8）
 
 ## 疑問
 
@@ -139,11 +140,30 @@ DHCP サーバー（.254）──「ゲートウェイは .2 です」──▶ 
 
 ---
 
+## 検証：`dhcpcd -U` でゲートウェイと DHCP サーバーを見る（2026-10-11）
+
+Router VM で `sudo dhcpcd -U ens33` を実行した結果（抜粋）：
+
+```text
+routers=192.168.22.2
+domain_name_servers=192.168.22.2
+dhcp_server_identifier=192.168.22.254
+```
+
+| 項目 | 値 | 分かること |
+|---|---|---|
+| `routers` | `192.168.22.2` | デフォルトゲートウェイは `.2`（VMware NAT） |
+| `dhcp_server_identifier` | `192.168.22.254` | 設定を配った DHCP サーバーは `.254` |
+| `domain_name_servers` | `192.168.22.2` | DNS サーバーも `.2`（VMware NAT） |
+
+**ゲートウェイ（`.2`）と DHCP サーバー（`.254`）は別の相手**であることが確かめられた。全体の出力と読み方は [質問8](2026-10-11-where-to-find-dhcp-server-address.md#出力の読み方) を参照。
+
+---
+
 ## まだ試していないこと
 
 | どこで | 操作 | 予想される結果 | 確かめられること |
 |---|---|---|---|
-| Router VM | `sudo dhcpcd -U ens33` | `routers=192.168.22.2` と `dhcp_server_identifier=192.168.22.254` が出る | ゲートウェイ（`.2`）と DHCP サーバー（`.254`）は別の相手 |
 | Windows | VMware の仮想ネットワークエディタで、VMnet8 の「NAT 設定」を開く | ゲートウェイ IP が `192.168.22.2` | `.2` は VMware NAT |
 | Windows | `services.msc` を開く | 「VMware NAT Service」と「VMware DHCP Service」が実行中 | NAT と DHCP は Windows の中で動いている |
 | Windows | `arp -a` | VMnet8（`192.168.22.1`）の欄に、`192.168.22.129` と `00-0c-29-73-2d-61` が出る | Windows 側から見ると、Router VM が「相手」として載る |
