@@ -118,10 +118,12 @@ MAC アドレスの先頭 3 つ（`00:0c:29` など）は、メーカーごと�
 
 | IP | NIC | 相手 |
 |---|---|---|
-| `192.168.22.1` | ens33 | Windows（VMware Network Adapter VMnet8）。SSH の接続元 |
+| `192.168.22.1` | ens33 | Windows（VMware Network Adapter VMnet8）。SSH の接続元。Windows の `ipconfig` で確認済み |
 | `192.168.22.2` | ens33 | VMware NAT（Router VM のデフォルトゲートウェイ） |
 | `192.168.22.254` | ens33 | VMware の DHCP サーバー（推定。VMware の NAT ネットワークでは通常 `.254`） |
 | `10.0.0.10` | ens37 | Client VM |
+
+`.1`、`.2`、`.254` は、どれも物理的には同じ Windows PC の中で動いていますが、ネットワーク上では別々の相手です。`.2` が何者なのかは [`192.168.22.2` は何か](../questions/2026-10-11-what-is-vmware-nat-gateway.md) を参照。
 
 ### Client VM
 
