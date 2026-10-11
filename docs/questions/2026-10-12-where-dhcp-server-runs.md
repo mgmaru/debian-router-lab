@@ -40,7 +40,7 @@ Windows
  │
  ├─ Router VM（Debian）
  │    ├─ ens33：dhcpcd が VMnet8 から受け取る               ← DHCP クライアント
- │    └─ ens37：静的 IP。まだ誰にも配っていない             ← labs/06 で DHCP サーバーになる
+ │    └─ ens37：静的 IP。まだ誰にも配っていない             ← labs/06 で、DHCP サーバーのプログラム（パッケージか自作）がここで配る
  │
  └─ Client VM（Debian）
       └─ ens33：静的 IP。DHCP を使っていない
@@ -50,9 +50,11 @@ Windows
 |---|---|---|
 | DHCP **サーバー**（配る側） | VMware DHCP Service | **Windows** の中 |
 | DHCP **クライアント**（受け取る側） | dhcpcd | **Router VM**（Debian）の中 |
-| まだいないもの | LAN 側（VMnet2）の DHCP サーバー | labs/06 で **Router VM** に置く |
+| まだいないもの | LAN 側（VMnet2）の DHCP サーバー | labs/06 で **Router VM** に置く（最初はパッケージ、その後に自作など）。ens37 で待ち受ける |
 
 「DHCP サーバー」と「DHCP クライアント」を分けて考えるのがポイントである。
+
+> 💡 **NIC（ens37）そのものが DHCP サーバーになるわけではない。** DHCP サーバーは、Router VM の上で動く**プログラム**（dnsmasq や自作のもの）で、ens37 はそのプログラムが待ち受ける**窓口**である。DHCP サーバーのプログラムが動き始めた後も、ens37 は**静的 IP（`10.0.0.1`）のまま**にする。配る側の IP が変わると、Client VM に配るゲートウェイ（`10.0.0.1`）も変わってしまうからである（[dhcp.md](../concepts/dhcp.md#静的-ip-と-dhcp-の使い分け) と同じ理由）。
 
 ---
 
@@ -195,7 +197,7 @@ Windows から Router VM に SSH できなくなる
 
 > ⚠️ **今、VMnet8 の DHCP を止めるのはやめておく。** 試すなら、VMware のコンソールから操作できる状態にしてからにする。
 
-> 💡 逆に、**VMnet2 の DHCP はオフのままにしておく**のが大事である。labs/06 で Router VM が DHCP サーバーになったとき、VMnet2 の VMware DHCP がオンだと、1 つのネットワークに DHCP サーバーが 2 台いる状態になる（[質問11](2026-10-11-dhcp-role-and-placement.md#質問11理解の確認とdhcp-サーバーの台数)）。
+> 💡 逆に、**VMnet2 の DHCP はオフのままにしておく**のが大事である。labs/06 で Router VM に DHCP サーバーのプログラムを置いたとき、VMnet2 の VMware DHCP がオンだと、1 つのネットワークに DHCP サーバーが 2 台いる状態になる（[質問11](2026-10-11-dhcp-role-and-placement.md#質問11理解の確認とdhcp-サーバーの台数)）。
 
 ---
 
