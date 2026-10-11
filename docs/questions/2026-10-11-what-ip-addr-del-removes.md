@@ -4,7 +4,7 @@
 
 関連：
 
-- [NIC 名（`ens33`）と、1 つの NIC に付けられる IP アドレスの数](2026-10-11-nic-name-and-multiple-ip-addresses.md)（質問4・5）
+- [NIC 名（`ens33`）と、1 つの NIC に付ける IP アドレス（数・ネットワーク）](2026-10-11-nic-name-and-multiple-ip-addresses.md)（質問4・5・16）
 - [`ip route` とルーティングテーブルとは何か](2026-10-11-what-is-ip-route-and-routing-table.md#各行は誰が作っているか)（質問1〜3）
 - [docs/concepts/persistent-config.md（一時的な設定と永続的な設定）](../concepts/persistent-config.md)
 
