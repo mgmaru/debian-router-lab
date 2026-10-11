@@ -175,6 +175,49 @@ kajih@debian-client:/etc/network$ ip neigh
 10.0.0.1 dev ens33 lladdr 00:0c:29:73:2d:6b DELAY
 ```
 
+### 6. DHCPで受け取った内容の確認（Router VM）
+
+DHCPサーバーのアドレスは `ip` コマンドには出ないため、DHCPクライアント（dhcpcd）が受け取った内容を確認した（2026-10-11）。
+
+最初はインターフェース名を打ち間違えた：
+
+```text
+kajih@debian-router:/etc/network$ sudo dhcpcd -U ens3
+dhcpcd is not running
+```
+
+正しい名前（`ens33`）で実行した：
+
+```text
+kajih@debian-router:/etc/network$ sudo dhcpcd -U ens33
+reason=CARRIER
+interface=ens33
+protocol=link
+if_configured=true
+ifcarrier=up
+ifmetric=1002
+ifwireless=0
+ifflags=69699
+ifmtu=1500
+
+reason=RENEW
+interface=ens33
+protocol=dhcp
+ip_address=192.168.22.129
+subnet_cidr=24
+network_number=192.168.22.0
+subnet_mask=255.255.255.0
+routers=192.168.22.2
+domain_name_servers=192.168.22.2
+domain_name=localdomain
+broadcast_address=192.168.22.255
+dhcp_lease_time=1800
+dhcp_message_type=5
+dhcp_server_identifier=192.168.22.254
+dhcp_renewal_time=900
+dhcp_rebinding_time=1575
+```
+
 ## Result
 
 ### 1. LAN側IPの一時設定と疎通確認
@@ -224,7 +267,7 @@ Router VMの相手：
 | `192.168.22.2` | ens33 | VMware NAT（Router VMのデフォルトゲートウェイ） | `STALE` |
 | `192.168.22.1` | ens33 | Windows（VMware Network Adapter VMnet8）。SSHの接続元 | `REACHABLE` |
 | `10.0.0.10` | ens37 | Client VM | `STALE` |
-| `192.168.22.254` | ens33 | VMwareのDHCPサーバー（推定。VMwareのNATネットワークでは通常 `.254`） | `STALE` |
+| `192.168.22.254` | ens33 | VMwareのDHCPサーバー（Experiment 6の `dhcpcd -U` で確認済み） | `STALE` |
 
 Client VMの相手：
 
@@ -250,6 +293,20 @@ Client VMの相手：
 - Client VMの `DELAY` は、Router VM経由のSSHの通信で、ちょうど使われたところだったため（推定）
 - MACアドレスの先頭 `00:0c:29` はVMwareのVMのNIC、`00:50:56` はVMwareが用意した仮想機器（NAT・DHCP・Windows側のアダプタ）。`00:50:56:c0:00:08` の末尾 `08` はVMnet8を表す
 
+### 6. DHCPで受け取った内容の確認（Router VM）
+
+| 項目 | 値 | 分かったこと |
+|---|---|---|
+| `dhcp_server_identifier` | `192.168.22.254` | DHCPサーバーは `.254` |
+| `routers` | `192.168.22.2` | デフォルトゲートウェイは `.2`（VMware NAT）。DHCPサーバーとは**別の相手** |
+| `domain_name_servers` | `192.168.22.2` | DNSサーバーもVMware NATが担当している |
+| `dhcp_lease_time` / `dhcp_renewal_time` | `1800` / `900` | リースは30分で、15分ごとに延長を申し込む |
+| `reason=RENEW` | — | 延長が実際に行われている |
+| `ifmetric` | `1002` | `ip route` の `metric 1002` と一致 |
+
+- `sudo dhcpcd -U ens3`（打ち間違い）では `dhcpcd is not running` になった。`ens3` を担当するdhcpcdがいないためで、DHCPが止まっているわけではない
+- 出力全体の読み方は [where-to-find-dhcp-server-address.md](../../docs/questions/2026-10-11-where-to-find-dhcp-server-address.md#出力の読み方) を参照
+
 ## Learned
 
 - `ip` コマンドの設定は**カーネルの中だけ**の変更で、再起動で消える
@@ -262,3 +319,4 @@ Client VMの相手：
 - ネットワーク設定の変更は「**今使っている接続を切らない**」意識で。困ったら VM のコンソールから直す
 - **ルーティングテーブル** ＝「宛先ごとの送り方」の一覧。ルーター VM では NIC ごとに自分のネットワークの行があり、`default` は WAN 側（ens33）にだけある
 - **近隣テーブル（`ip neigh`）** ＝ 同じネットワークの相手の IP と MAC の対応表。ルーティングテーブルで決めた「次に渡す相手」の IP を、ここで MAC に変換して送る
+- **DHCP サーバーのアドレスは `ip` コマンドには出ない**。DHCP クライアントに聞く（`sudo dhcpcd -U ens33` の `dhcp_server_identifier`）。このラボでは DHCP サーバー（`.254`）とゲートウェイ（`.2`）は別の相手
