@@ -9,7 +9,7 @@
 - [docs/concepts/routing.md（デフォルトゲートウェイ）](../concepts/routing.md#デフォルトゲートウェイ)
 - [docs/concepts/persistent-config.md（一時的な設定と永続的な設定）](../concepts/persistent-config.md)
 - [NIC 名（`ens33`）と、1 つの NIC に付ける IP アドレス（数・ネットワーク）](2026-10-11-nic-name-and-multiple-ip-addresses.md)（追加質問：質問4・5・16）
-- [ルーティングテーブルの `10.0.0.0` とは何か：ネットワークアドレスと `.0` の意味](2026-10-13-network-address-in-routing-table.md)（追加質問：質問17〜19）
+- [ネットワークアドレスとブロードキャストアドレス：`.0` と `.255` の意味と使い道](2026-10-13-network-address-in-routing-table.md)（追加質問：質問17〜23）
 
 ## 疑問
 
