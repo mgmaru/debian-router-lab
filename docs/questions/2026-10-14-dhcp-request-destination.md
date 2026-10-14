@@ -2,7 +2,7 @@
 
 調査日：2026-10-14
 
-まとまった説明：[docs/concepts/dhcp.md](../concepts/dhcp.md#2-回目以降の問い合わせ)
+まとまった説明：[docs/concepts/dhcp.md](../concepts/dhcp.md#dhcp-のやりとりdora)
 
 関連：
 
