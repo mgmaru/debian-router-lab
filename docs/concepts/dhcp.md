@@ -95,7 +95,54 @@ Debian 13 で DHCP クライアントに dhcpcd が使われている場合：
 sudo dhcpcd -U ens33
 ```
 
-`ip_address`（IP）、`subnet_mask`（サブネットマスク）、`routers`（**デフォルトゲートウェイ**）、`domain_name_servers`（DNS）、`dhcp_lease_time`（リース時間）などが一覧で表示されます。上の表と照らし合わせると、DHCP が何を配っているのかを実感できます。
+DHCP で受け取った内容が、`名前=値` の形で一覧表示されます。
+
+### ルーター VM での実行結果
+
+2026-10-11 と 2026-10-14 に実行して、どちらも同じ内容でした。リースの延長が続いていて、同じ IP を使い続けていることが分かります。
+
+```text
+reason=RENEW
+interface=ens33
+protocol=dhcp
+ip_address=192.168.22.129
+subnet_cidr=24
+network_number=192.168.22.0
+subnet_mask=255.255.255.0
+routers=192.168.22.2
+domain_name_servers=192.168.22.2
+domain_name=localdomain
+broadcast_address=192.168.22.255
+dhcp_lease_time=1800
+dhcp_message_type=5
+dhcp_server_identifier=192.168.22.254
+dhcp_renewal_time=900
+dhcp_rebinding_time=1575
+```
+
+実際の出力では、この前に `reason=CARRIER` というかたまりも表示されます。これは NIC の状態（ケーブルがつながっているか、MTU など）で、DHCP で受け取った内容ではありません（読み方は [DHCP サーバーのアドレスはどこで分かるのか](../questions/2026-10-11-where-to-find-dhcp-server-address.md#出力の読み方) を参照）。
+
+### 出力の読み方
+
+| 項目 | 値 | 意味 | 関連する説明 |
+|---|---|---|---|
+| `reason` | `RENEW` | 最後の出来事は、リースの延長だった | [2 回目以降の問い合わせ](#2-回目以降の問い合わせ) |
+| `ip_address` | `192.168.22.129` | もらった自分の IP | [DHCP が配るもの](#dhcp-が配るもの) |
+| `subnet_cidr` / `subnet_mask` | `24` / `255.255.255.0` | ネットワークの範囲。同じ意味の 2 通りの書き方 | [サブネットマスク](ip-address.md#同じことを表すサブネットマスク) |
+| `network_number` | `192.168.22.0` | ネットワークアドレス（ホスト部がすべて 0） | [ネットワークアドレス](ip-address.md#ネットワークアドレス) |
+| `broadcast_address` | `192.168.22.255` | ブロードキャストアドレス（ホスト部がすべて 1） | [ブロードキャストアドレス](ip-address.md#ブロードキャストアドレス) |
+| `routers` | `192.168.22.2` | **デフォルトゲートウェイ**（VMware NAT） | [デフォルトゲートウェイ](routing.md#デフォルトゲートウェイ) |
+| `domain_name_servers` | `192.168.22.2` | DNS サーバー。VMware NAT が DNS も担当している | |
+| `domain_name` | `localdomain` | ドメイン名 | |
+| `dhcp_server_identifier` | `192.168.22.254` | **この設定を配った DHCP サーバーのアドレス**（オプション 54）。リースの延長は、ここへ直接送る | [2 回目以降の問い合わせ](#2-回目以降の問い合わせ) |
+| `dhcp_message_type` | `5` | 最後に受け取ったメッセージの種類。`5` は Ack | [DORA](#dhcp-のやりとりdora) |
+| `dhcp_lease_time` | `1800` | リースの期限は 30 分 | |
+| `dhcp_renewal_time` | `900` | 15 分（リースの 50%）たったら、DHCP サーバーに直接、延長を申し込む | [2 回目以降の問い合わせ](#2-回目以降の問い合わせ) |
+| `dhcp_rebinding_time` | `1575` | 26 分 15 秒（リースの 87.5%）たっても延長できなければ、`255.255.255.255` 宛てに呼びかけて、どのサーバーでもよいので延ばしてもらう | 同上 |
+
+「2 回目以降の問い合わせ」の表にある 900 秒と 1,575 秒は、`dhcp_renewal_time` と `dhcp_rebinding_time` の値です。
+
+> 💡 `dhcp_server_identifier`（`192.168.22.254`）と `routers`（`192.168.22.2`）は別の値です。DHCP サーバーとデフォルトゲートウェイは、別の相手です。
 
 ---
 
