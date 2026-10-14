@@ -16,7 +16,7 @@
 
 ## IP アドレス・NIC
 
-まとまった説明：[interface.md](../concepts/interface.md)
+まとまった説明：[ip-address.md](../concepts/ip-address.md)、[interface.md](../concepts/interface.md)
 
 | 疑問 | 日付 |
 |---|---|
