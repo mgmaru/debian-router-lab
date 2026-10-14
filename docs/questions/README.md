@@ -24,6 +24,7 @@
 | [NIC 名（`ens33`）と、1 つの NIC に付ける IP アドレス（数・ネットワーク）](2026-10-11-nic-name-and-multiple-ip-addresses.md) | 2026-10-11 |
 | [`ip addr del` でアドレスを消すと、何が消えるのか](2026-10-11-what-ip-addr-del-removes.md) | 2026-10-11 |
 | [ネットワークアドレスとブロードキャストアドレス：`.0` と `.255` の意味と使い道](2026-10-13-network-address-in-routing-table.md) | 2026-10-13 |
+| [`/23` や `/15` のような中途半端な長さのネットワークは、実務で使うのか](2026-10-14-non-octet-prefix-in-practice.md) | 2026-10-14 |
 
 ## DHCP
 
