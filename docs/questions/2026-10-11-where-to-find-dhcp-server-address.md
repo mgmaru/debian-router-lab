@@ -8,10 +8,13 @@
 - [`192.168.22.2` は何か：VMware NAT とデフォルトゲートウェイ](2026-10-11-what-is-vmware-nat-gateway.md)（質問7）
 - [`ip addr` にデフォルトゲートウェイは表示されないのか](2026-10-11-ip-addr-and-default-gateway.md)
 - [labs/01-network-interface](../../labs/01-network-interface/README.md)
+- [NIC 名（`ens33`）と、1 つの NIC に付ける IP アドレス（数・ネットワーク）](2026-10-11-nic-name-and-multiple-ip-addresses.md)（質問5：1 つの NIC に複数の IP を付ける）
 
 ## 疑問
 
 > **質問8（追加質問）**：DHCP サーバーは `ip addr` でも出てこないのではないか？ DHCP サーバーのアドレスはどこで分かるのか？
+
+> **質問30（追加質問）**：`sudo dhcpcd -U ens33` は、ens33 のインターフェースに対する DHCP クライアントの結果か？ ens33 には複数の IP を割り振れると思うが、今は `ip_address` が `192.168.22.129` になっている。ここに別のアドレスを割り振った場合、`ip_address` は複数表示されるのか？（2026-10-14 追記）
 
 ## 結論
 
@@ -19,6 +22,7 @@
 |---|---|
 | `ip addr` に DHCP サーバーは出ない？ | **その通り、出ない。** `ip addr` は自分の NIC に付いたアドレスを見るコマンドで、DHCP サーバーは**相手**だから。`ip addr` で分かるのは、「DHCP でもらったアドレスであること（`dynamic`）」までである |
 | どこで分かる？ | **DHCP クライアントが受け取った情報**で分かる。Router VM なら `sudo dhcpcd -U ens33` の `dhcp_server_identifier` に出る（このラボでは `192.168.22.254` だった） |
+| `dhcpcd -U` に、手で付けた IP も出る？ | **出ない。** `dhcpcd -U` に出るのは、ens33 の dhcpcd が DHCP で受け取った内容だけ。ens33 に付いているすべての IP は `ip addr show ens33` で見る |
 
 ---
 
@@ -187,12 +191,66 @@ Linux は Windows と違い、`ip` コマンドが DHCP の情報を持ってい
 
 ---
 
+## 質問30：`dhcpcd -U` に、手で付けた IP も表示されるか
+
+### 結論
+
+| 質問 | 答え |
+|---|---|
+| `sudo dhcpcd -U ens33` は、ens33 の DHCP クライアントの結果？ | **その通り。** ens33 を担当している dhcpcd（DHCP クライアント）が、**DHCP サーバーから受け取った内容**（リース）を表示している |
+| 別のアドレスを付けたら、`ip_address` が複数表示される？ | **されない。** `dhcpcd -U` に出るのは、DHCP でもらったアドレスだけである。`ip addr add` で手で付けたアドレスは DHCP と関係ないので、表示されない。ens33 に付いているアドレスを**すべて**見たいときは、`ip addr show ens33` を使う |
+
+### `dhcpcd -U` と `ip addr` は、見ているものが違う
+
+| | `sudo dhcpcd -U ens33` | `ip addr show ens33` |
+|---|---|---|
+| 何を表示するか | dhcpcd が **DHCP で受け取った内容** | ens33 に**今付いているすべての IP** |
+| 誰に聞いているか | dhcpcd（DHCP クライアント） | カーネル |
+| DHCP でもらった IP | 出る（`ip_address`） | 出る（`dynamic` が付く） |
+| 手で付けた IP | **出ない** | 出る |
+| ほかに分かること | ゲートウェイ、DNS、DHCP サーバー、リース時間 | MAC アドレス、状態、リースの残り時間（`valid_lft`） |
+
+たとえるなら、`dhcpcd -U` は「**DHCP サーバーから受け取った貸出証**」を見るコマンドである。`ip addr` は「**今、胸に付けている名札を全部**」見るコマンドである。自分で作った名札（手で付けた IP）は、貸出証には載っていない。
+
+### 1 回の DHCP でもらえる IP は 1 つ
+
+DHCP サーバーは、1 つの貸し出し（リース）につき、IP アドレスを 1 つ配る。そのため、ens33 の dhcpcd が持っている `ip_address` は、いつも 1 つである。
+
+### 実際に付けた場合（予想）
+
+たとえば、ens33 に `192.168.22.50/24` を手で付けたとする。
+
+```bash
+sudo ip addr add 192.168.22.50/24 dev ens33
+```
+
+`ip addr show ens33` には、2 つ並ぶはずである。
+
+```text
+inet 192.168.22.129/24 brd 192.168.22.255 scope global dynamic noprefixroute ens33
+   valid_lft 1520sec preferred_lft 1295sec
+inet 192.168.22.50/24 scope global secondary ens33
+   valid_lft forever preferred_lft forever
+```
+
+| 行 | 見分け方 |
+|---|---|
+| `192.168.22.129` | `dynamic` と、期限のある `valid_lft` → DHCP でもらったもの |
+| `192.168.22.50` | `dynamic` が無く `valid_lft forever`。同じネットワークの 2 つ目なので `secondary`（[質問5](2026-10-11-nic-name-and-multiple-ip-addresses.md#追加方法一時的)） → 手で付けたもの |
+
+一方、`sudo dhcpcd -U ens33` の `ip_address` は、`192.168.22.129` のままのはずである。
+
+> ⚠️ 試すときは、VMware の DHCP が配る範囲（通常は `.128`〜`.254`）の外のアドレスを使う。範囲の中のアドレスを付けると、ほかの VM に配られて重複するおそれがある。ens33 は SSH に使っている NIC だが、アドレスを**足す**だけなら接続は切れない（DHCP のアドレスを消すと切れる）。
+
+---
+
 ## まだ試していないこと
 
 | コマンド（Router VM） | 予想される結果 | 確かめられること |
 |---|---|---|
 | `sudo journalctl -b \| grep dhcpcd` | `offered 192.168.22.129 from 192.168.22.254` のような行 | ログからも DHCP サーバーが分かる |
 | `sudo tcpdump -i ens33 -n port 67 or port 68`（延長まで待つ） | `192.168.22.254.67` とのやりとり | DHCP の通信を直接見られる |
+| `sudo ip addr add 192.168.22.50/24 dev ens33` → `ip addr show ens33` と `sudo dhcpcd -U ens33` を見比べる → `sudo ip addr del 192.168.22.50/24 dev ens33` で戻す | `ip addr` には 2 つ並ぶが、`dhcpcd -U` の `ip_address` は `192.168.22.129` だけ | `dhcpcd -U` に出るのは、DHCP で受け取った内容だけ（質問30） |
 
 ---
 
@@ -202,3 +260,4 @@ Linux は Windows と違い、`ip` コマンドが DHCP の情報を持ってい
 - DHCP サーバーのアドレスは、パケットを送るのに必要ないので、カーネルではなく **DHCP クライアント（dhcpcd）が覚えている**。
 - いちばん簡単な確認方法は `sudo dhcpcd -U ens33` の **`dhcp_server_identifier`**。ログ（`journalctl`）や `tcpdump` でも分かる。
 - このラボでは、**DHCP サーバー（`.254`）とゲートウェイ（`.2`）は別の相手**。家庭のルーターのように同じとは限らない。
+- `dhcpcd -U` に出るのは、**DHCP で受け取った内容だけ**。手で付けた IP は出ないので、ens33 に付いているすべての IP は `ip addr show ens33` で見る。
