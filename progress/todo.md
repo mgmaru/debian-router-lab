@@ -70,11 +70,19 @@
 
 ## Phase 5 - Automation
 
+Ansibleで自動化する（[007](../docs/decisions/007-use-ansible.md)）。
+
 - [ ] 手動設定を整理
 - [ ] 設定ファイルを `configs/` に保存
-- [ ] Setup Scriptを作成
-- [ ] Test Scriptを作成
-- [ ] Reset / Cleanup Scriptを作成
+- [ ] Router VM / Client VMをインストール直後の状態に戻せるよう、VMware Snapshotを作成
+- [ ] MacBookへAnsibleをインストール
+- [ ] Inventoryを作成（`~/.ssh/config` の多段SSHを利用）
+- [ ] `ansible all -m ping` でRouter VM / Client VMへの接続確認
+- [ ] Router VM用Playbookを作成（Network / sysctl / nftables / DHCP / DNS）
+- [ ] Client VM用Playbookを作成
+- [ ] Playbookを2回実行し、2回目が `changed=0` になること（冪等性）を確認
+- [ ] Snapshotでインストール直後に戻し、Playbookだけで元の環境を再現できることを確認
+- [ ] Test Scriptを作成（Client → Router → WAN の疎通、NAT、Firewallを確認）
 
 ## Phase 6 - Router Software
 

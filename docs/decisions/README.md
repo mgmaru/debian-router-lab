@@ -14,6 +14,7 @@
 | [004](004-support-amd64-and-arm64.md) | Router Softwareをamd64 / arm64の両方へ移植できるように作る |
 | [005](005-ssh-via-jump-host.md) | VMへのSSHは踏み台経由で行う |
 | [006](006-use-ifupdown.md) | ネットワーク設定はifupdownで管理する |
+| [007](007-use-ansible.md) | VMの設定自動化はAnsibleで行う |
 
 ---
 
@@ -40,6 +41,8 @@
 | 学習方法 | Router VMとClient VMをセットで使用する | [overview](../architecture/overview.md) |
 | VMへのSSH | Windows、Router VMを踏み台にした多段SSH | [005](005-ssh-via-jump-host.md) |
 | VMのネットワーク設定 | ifupdown（`/etc/network/interfaces`）で管理する | [006](006-use-ifupdown.md) |
+| 設定の自動化 | **Ansible**（手作業で理解した後に書き起こす） | [007](007-use-ansible.md) |
+| VM作成の自動化 | 行わない（Terraformは使用しない） | [007](007-use-ansible.md) |
 | 最初の開発 | Linuxを手動でルーター化 | [README](../../README.md) |
 | 自作Software | Linux機能を理解した後に開発 | [routerd](../../src/routerd/README.md) |
 | Hardware購入 | **現時点では行わない** | [003](003-hardware-later.md) |
