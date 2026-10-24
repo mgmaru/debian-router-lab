@@ -283,6 +283,39 @@ default via 192.168.22.2 dev ens33 proto dhcp src 192.168.22.129 metric 1002
 192.168.22.0/24 dev ens33 proto dhcp scope link src 192.168.22.129 metric 1002
 ```
 
+### 9. `tcpdump` で `ping` のパケットを観察（Router VM / Client VM）
+
+Router VMのens37（LAN側）で `tcpdump` を動かしたまま、Client VMからRouter VMへ `ping` を1回打った（2026-10-24）。
+ens33（WAN側）はSSHに使っているため、条件なしでは見ない（SSHのパケットが表示され続ける）。
+
+Router VM（先に起動しておく。止めるときは `Ctrl + C`）：
+
+```text
+kajih@debian-router:~$ sudo tcpdump -i ens37 -n icmp
+tcpdump: verbose output suppressed, use -v[v]... for full protocol decode
+listening on ens37, link-type EN10MB (Ethernet), snapshot length 262144 bytes
+17:38:40.184650 IP 10.0.0.10 > 10.0.0.1: ICMP echo request, id 1, seq 1, length 64
+17:38:40.184700 IP 10.0.0.1 > 10.0.0.10: ICMP echo reply, id 1, seq 1, length 64
+```
+
+Client VM：
+
+```text
+kajih@debian-client:~$ ping -c 1 10.0.0.1
+PING 10.0.0.1 (10.0.0.1) 56(84) bytes of data.
+64 bytes from 10.0.0.1: icmp_seq=1 ttl=64 time=0.412 ms
+
+--- 10.0.0.1 ping statistics ---
+1 packets transmitted, 1 received, 0% packet loss, time 0ms
+rtt min/avg/max/mdev = 0.412/0.412/0.412/0.000 ms
+```
+
+| オプション | 意味 |
+|---|---|
+| `-i ens37` | 見るインターフェース |
+| `-n` | IPアドレスを名前に変換しない |
+| `icmp` | ICMP（`ping`）のパケットだけに絞る |
+
 ## Result
 
 ### 1. LAN側IPの一時設定と疎通確認
@@ -404,6 +437,36 @@ Client VMの相手：
 - IPv6アドレスは、down で消えて up で作り直される（IPv4とは扱いが違う）。ens37の `fe80::20c:29ff:fe73:2d6b` はMACアドレス `00:0c:29:73:2d:6b` から作られているので、作り直しても同じアドレスになる（IPv6は labs/08 で扱う）
 - `ip link set` は一時的な変更で、再起動すると `/etc/network/interfaces` の `auto ens37` によって再び up になる
 
+### 9. `tcpdump` で `ping` のパケットを観察（Router VM / Client VM）
+
+`ping` 1回分の「行き（request）」と「帰り（reply）」が、ens37で1つずつ見えた。
+
+```text
+17:38:40.184650 IP 10.0.0.10 > 10.0.0.1: ICMP echo request, id 1, seq 1, length 64
+```
+
+| 部分 | 意味 |
+|---|---|
+| `17:38:40.184650` | パケットを見た時刻（マイクロ秒まで） |
+| `IP` | IPv4のパケット |
+| `10.0.0.10 > 10.0.0.1` | 送信元 → 宛先（Client VM → Router VM） |
+| `ICMP echo request` | `ping` の「返事をください」。返事は `echo reply` |
+| `id 1` | どの `ping` コマンドのパケットかを見分ける番号。request と reply で同じ |
+| `seq 1` | 何回目か。`ping` の `icmp_seq=1` と同じ |
+| `length 64` | ICMP部分の長さ（バイト） |
+
+ヘッダ行の意味：
+
+| 表示 | 意味 |
+|---|---|
+| `verbose output suppressed` | 詳しい表示は省略している。`-v` や `-vv` を付けると詳しく出る |
+| `link-type EN10MB (Ethernet)` | Ethernetのパケットを見ている。`10MB` は昔の 10Mbps Ethernet から来た名前で、速度とは関係ない |
+| `snapshot length 262144 bytes` | 1パケットにつき、最大何バイトまで記録するか |
+
+- **大きさが `ping` の表示と一致した。** `ping` の `56(84) bytes` は、データ56バイト ＋ ICMPヘッダ8バイト ＝ **64**（tcpdump の `length 64`）。さらにIPヘッダ20バイトを足すと **84** になる
+- **Router VMは約0.05msで返事している。** request（`.184650`）から reply（`.184700`）まで約50マイクロ秒。Client VMの `time=0.412 ms` との差は、Client VM → VMnet2 → Router VM を往復する時間
+- `ttl=64` は、Linux が送るパケットの初期値。Router VMとClient VMは同じネットワークにいて、途中にルーターを挟まないので、64のまま届いている
+
 ## Learned
 
 - `ip` コマンドの設定は**カーネルの中だけ**の変更で、再起動で消える
@@ -419,3 +482,4 @@ Client VMの相手：
 - **DHCP サーバーのアドレスは `ip` コマンドには出ない**。DHCP クライアントに聞く（`sudo dhcpcd -U ens33` の `dhcp_server_identifier`）。このラボでは DHCP サーバー（`.254`）とゲートウェイ（`.2`）は別の相手
 - **`ip link`** ＝ インターフェースそのもの（L2）の一覧。名前・フラグ・MTU・MACアドレスが出て、IPアドレスは出ない。`UP` は設定、`LOWER_UP` は接続状態を表す
 - **インターフェースを down にすると、IPv4 アドレスは残るが経路は消える**。up すれば、カーネルが経路を自動で作り直す
+- **`tcpdump`** ＝ インターフェースを通るパケットを、そのまま表示する道具。`sudo tcpdump -i <NIC> -n <条件>` で使う。SSHに使っているNICは、`not port 22` で除外しないと表示が止まらない
