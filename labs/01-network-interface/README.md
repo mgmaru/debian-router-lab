@@ -254,6 +254,35 @@ kajih@debian-client:~$ ip link
     altname enx000c29206cff
 ```
 
+### 8. インターフェースを落として戻す（Router VM）
+
+Router VMのens37（LAN側）を `ip link set` で一度落とし、元に戻した（2026-10-24）。
+ens33（WAN側）はSSHに使っているため、落とさない。
+
+```text
+kajih@debian-router:~$ ip -br addr
+lo               UNKNOWN        127.0.0.1/8 ::1/128
+ens33            UP             192.168.22.129/24 fe80::405b:26a0:677d:cc86/64
+ens37            UP             10.0.0.1/24 fe80::20c:29ff:fe73:2d6b/64
+kajih@debian-router:~$ sudo ip link set ens37 down
+kajih@debian-router:~$ ip -br addr
+lo               UNKNOWN        127.0.0.1/8 ::1/128
+ens33            UP             192.168.22.129/24 fe80::405b:26a0:677d:cc86/64
+ens37            DOWN           10.0.0.1/24
+kajih@debian-router:~$ ip route
+default via 192.168.22.2 dev ens33 proto dhcp src 192.168.22.129 metric 1002
+192.168.22.0/24 dev ens33 proto dhcp scope link src 192.168.22.129 metric 1002
+kajih@debian-router:~$ sudo ip link set ens37 up
+kajih@debian-router:~$ ip -br addr
+lo               UNKNOWN        127.0.0.1/8 ::1/128
+ens33            UP             192.168.22.129/24 fe80::405b:26a0:677d:cc86/64
+ens37            UP             10.0.0.1/24 fe80::20c:29ff:fe73:2d6b/64
+kajih@debian-router:~$ ip route
+default via 192.168.22.2 dev ens33 proto dhcp src 192.168.22.129 metric 1002
+10.0.0.0/24 dev ens37 proto kernel scope link src 10.0.0.1
+192.168.22.0/24 dev ens33 proto dhcp scope link src 192.168.22.129 metric 1002
+```
+
 ## Result
 
 ### 1. LAN側IPの一時設定と疎通確認
@@ -360,6 +389,21 @@ Client VMの相手：
 - `BROADCAST` / `MULTICAST` は「その仕組みに対応している」という印で、`lo` には付かない（[broadcast-multicast-flags-in-ip-link.md](../../docs/questions/2026-10-24-broadcast-multicast-flags-in-ip-link.md)）
 - `lo` の `state UNKNOWN` は、ループバックには「ケーブルの接続状態」が無いためで、異常ではない
 
+### 8. インターフェースを落として戻す（Router VM）
+
+| 確認したこと | down の後 | up の後 |
+|---|---|---|
+| ens37 の状態 | `DOWN` | `UP` |
+| IPv4 アドレス `10.0.0.1/24` | **残っている** | 残っている |
+| `ip route` の `10.0.0.0/24 dev ens37` の行 | **消えた** | **自動で戻った**（`proto kernel`） |
+| IPv6 アドレス `fe80::20c:29ff:fe73:2d6b/64` | **消えた** | 戻った |
+
+- インターフェースを落としても、IPv4アドレスは残る。アドレス（`ip addr`）とインターフェースの状態（`ip link`）は、別々に管理されている
+- 使えないインターフェースから送ることはできないので、カーネルがその経路を外す。down の間、Router VMは `10.0.0.0/24`（Client VM）宛ての送り先を持っていなかった
+- up すると、残っていたアドレスからカーネルが「自分のネットワーク」の行を作り直す。`ip route add` は要らない
+- IPv6アドレスは、down で消えて up で作り直される（IPv4とは扱いが違う）。ens37の `fe80::20c:29ff:fe73:2d6b` はMACアドレス `00:0c:29:73:2d:6b` から作られているので、作り直しても同じアドレスになる（IPv6は labs/08 で扱う）
+- `ip link set` は一時的な変更で、再起動すると `/etc/network/interfaces` の `auto ens37` によって再び up になる
+
 ## Learned
 
 - `ip` コマンドの設定は**カーネルの中だけ**の変更で、再起動で消える
@@ -374,3 +418,4 @@ Client VMの相手：
 - **近隣テーブル（`ip neigh`）** ＝ 同じネットワークの相手の IP と MAC の対応表。ルーティングテーブルで決めた「次に渡す相手」の IP を、ここで MAC に変換して送る
 - **DHCP サーバーのアドレスは `ip` コマンドには出ない**。DHCP クライアントに聞く（`sudo dhcpcd -U ens33` の `dhcp_server_identifier`）。このラボでは DHCP サーバー（`.254`）とゲートウェイ（`.2`）は別の相手
 - **`ip link`** ＝ インターフェースそのもの（L2）の一覧。名前・フラグ・MTU・MACアドレスが出て、IPアドレスは出ない。`UP` は設定、`LOWER_UP` は接続状態を表す
+- **インターフェースを down にすると、IPv4 アドレスは残るが経路は消える**。up すれば、カーネルが経路を自動で作り直す
