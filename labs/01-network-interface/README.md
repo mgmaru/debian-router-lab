@@ -218,6 +218,42 @@ dhcp_renewal_time=900
 dhcp_rebinding_time=1575
 ```
 
+### 7. インターフェースの観察（Router VM / Client VM）
+
+Router VMとClient VMで `ip link` を実行し、インターフェースの状態を確認した（2026-10-24）。
+
+```bash
+ip link
+```
+
+Router VM：
+
+```text
+kajih@debian-router:~$ ip link
+1: lo: <LOOPBACK,UP,LOWER_UP> mtu 65536 qdisc noqueue state UNKNOWN mode DEFAULT group default qlen 1000
+    link/loopback 00:00:00:00:00:00 brd 00:00:00:00:00:00
+2: ens33: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 1500 qdisc fq_codel state UP mode DEFAULT group default qlen 1000
+    link/ether 00:0c:29:73:2d:61 brd ff:ff:ff:ff:ff:ff
+    altname enp2s1
+    altname enx000c29732d61
+3: ens37: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 1500 qdisc fq_codel state UP mode DEFAULT group default qlen 1000
+    link/ether 00:0c:29:73:2d:6b brd ff:ff:ff:ff:ff:ff
+    altname enp2s5
+    altname enx000c29732d6b
+```
+
+Client VM：
+
+```text
+kajih@debian-client:~$ ip link
+1: lo: <LOOPBACK,UP,LOWER_UP> mtu 65536 qdisc noqueue state UNKNOWN mode DEFAULT group default qlen 1000
+    link/loopback 00:00:00:00:00:00 brd 00:00:00:00:00:00
+2: ens33: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 1500 qdisc fq_codel state UP mode DEFAULT group default qlen 1000
+    link/ether 00:0c:29:20:6c:ff brd ff:ff:ff:ff:ff:ff
+    altname enp2s1
+    altname enx000c29206cff
+```
+
 ## Result
 
 ### 1. LAN側IPの一時設定と疎通確認
@@ -307,6 +343,23 @@ Client VMの相手：
 - `sudo dhcpcd -U ens3`（打ち間違い）では `dhcpcd is not running` になった。`ens3` を担当するdhcpcdがいないためで、DHCPが止まっているわけではない
 - 出力全体の読み方は [where-to-find-dhcp-server-address.md](../../docs/questions/2026-10-11-where-to-find-dhcp-server-address.md#出力の読み方) を参照
 
+### 7. インターフェースの観察（Router VM / Client VM）
+
+| VM | インターフェース | MAC | フラグ | 状態 |
+|---|---|---|---|---|
+| Router VM | `lo` | — | `LOOPBACK,UP,LOWER_UP` | `UNKNOWN` |
+| Router VM | `ens33`（WAN） | `00:0c:29:73:2d:61` | `BROADCAST,MULTICAST,UP,LOWER_UP` | `UP` |
+| Router VM | `ens37`（LAN） | `00:0c:29:73:2d:6b` | `BROADCAST,MULTICAST,UP,LOWER_UP` | `UP` |
+| Client VM | `lo` | — | `LOOPBACK,UP,LOWER_UP` | `UNKNOWN` |
+| Client VM | `ens33`（LAN） | `00:0c:29:20:6c:ff` | `BROADCAST,MULTICAST,UP,LOWER_UP` | `UP` |
+
+- Router VMには `lo`・`ens33`・`ens37` の3つ、Client VMには `lo`・`ens33` の2つのインターフェースがある。`lo` はNICではない
+- `ip link` には**IPアドレスが出ない**。`ip addr` は「`ip link` の内容 ＋ IPアドレス」を表示している
+- MACアドレスは、Experiment 5の近隣テーブルと一致した（Router VMの `10.0.0.10` → `00:0c:29:20:6c:ff`、Client VMの `10.0.0.1` → `00:0c:29:73:2d:6b`）
+- `UP` と `LOWER_UP` が両方付いているので、すべてのNICが「設定上も使う状態」かつ「仮想ケーブルがつながっている」
+- `BROADCAST` / `MULTICAST` は「その仕組みに対応している」という印で、`lo` には付かない（[broadcast-multicast-flags-in-ip-link.md](../../docs/questions/2026-10-24-broadcast-multicast-flags-in-ip-link.md)）
+- `lo` の `state UNKNOWN` は、ループバックには「ケーブルの接続状態」が無いためで、異常ではない
+
 ## Learned
 
 - `ip` コマンドの設定は**カーネルの中だけ**の変更で、再起動で消える
@@ -320,3 +373,4 @@ Client VMの相手：
 - **ルーティングテーブル** ＝「宛先ごとの送り方」の一覧。ルーター VM では NIC ごとに自分のネットワークの行があり、`default` は WAN 側（ens33）にだけある
 - **近隣テーブル（`ip neigh`）** ＝ 同じネットワークの相手の IP と MAC の対応表。ルーティングテーブルで決めた「次に渡す相手」の IP を、ここで MAC に変換して送る
 - **DHCP サーバーのアドレスは `ip` コマンドには出ない**。DHCP クライアントに聞く（`sudo dhcpcd -U ens33` の `dhcp_server_identifier`）。このラボでは DHCP サーバー（`.254`）とゲートウェイ（`.2`）は別の相手
+- **`ip link`** ＝ インターフェースそのもの（L2）の一覧。名前・フラグ・MTU・MACアドレスが出て、IPアドレスは出ない。`UP` は設定、`LOWER_UP` は接続状態を表す

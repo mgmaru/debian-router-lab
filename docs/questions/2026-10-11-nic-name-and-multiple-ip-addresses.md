@@ -52,7 +52,7 @@
     link/ether 00:0c:29:73:2d:6b brd ff:ff:ff:ff:ff:ff
 ```
 
-（labs/01 で `ip a` を実行したときの内容をもとにした例。`ip link` そのものはまだ実行していない）
+（labs/01 で `ip a` を実行したときの内容をもとにした例。2026-10-24 に `ip link` を実際に実行し、同じ内容であることを確認した：[labs/01 の Experiment 7](../../labs/01-network-interface/README.md#7-インターフェースの観察router-vm--client-vm)）
 
 | 表示 | 意味 |
 |---|---|
