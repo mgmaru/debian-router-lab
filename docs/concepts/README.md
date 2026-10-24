@@ -14,4 +14,4 @@
 | [Routing](routing.md) | デフォルトゲートウェイ：なぜ必要か、設定のしかた、Router VM に `gateway` を書かなかった理由 |
 | [Neighbor Table（近隣テーブル）](neighbor.md) | 近隣テーブルと ARP、ルーティングテーブルとの役割分担、`ip neigh` の読み方 |
 | [DHCP](dhcp.md) | DHCP が配るもの、やりとり（DORA）と、1 回目・2 回目以降の問い合わせの宛先、受け取った内容の確認方法、静的 IP との使い分け |
-| [一時的な設定と永続的な設定](persistent-config.md) | `ip` コマンドなどの一時的な設定と、`/etc/network/interfaces` などの永続的な設定の違い |
+| [一時的な設定と永続的な設定](persistent-config.md) | `ip` コマンドなどの一時的な設定と、`/etc/network/interfaces` などの永続的な設定の違い、設定ごとの永続化の場所、`/etc/sysctl.d/` の書き方と読まれる順番、`/etc` と `/usr` の使い分け、調べ方 |

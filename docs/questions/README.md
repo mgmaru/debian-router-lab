@@ -40,6 +40,14 @@
 | [IP Forwarding はルーターの機能か：初期状態、専用ルーターとの違い、Docker が転送をオンにする理由](2026-10-24-ip-forwarding-default-and-docker.md) | 2026-10-24 |
 | [専用ルーターはなぜ仕事を 2 つに分けるのか：CPU と ASIC の違い](2026-10-24-router-cpu-vs-asic.md) | 2026-10-24 |
 
+## 設定ファイル・永続化
+
+まとまった説明：[persistent-config.md](../concepts/persistent-config.md)
+
+| 疑問 | 日付 |
+|---|---|
+| [カーネルの設定の永続化：`/etc/sysctl.d/` の仕組み、ファイル名と書式、読まれる順番、`/etc` と `/usr` の使い分け](2026-10-25-sysctl-d-and-config-locations.md) | 2026-10-25 |
+
 ## DHCP
 
 まとまった説明：[dhcp.md](../concepts/dhcp.md)
