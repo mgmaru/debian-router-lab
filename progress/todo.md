@@ -43,7 +43,7 @@
 - [x] `ip link` を理解
 - [x] `ip route` を理解
 - [x] `ip neigh` を理解
-- [ ] `tcpdump` でPacketを観察
+- [x] `tcpdump` でPacketを観察
 
 ## Phase 3 - Router Fundamentals
 
