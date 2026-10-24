@@ -27,6 +27,12 @@
 | [`/23` や `/15` のような中途半端な長さのネットワークは、実務で使うのか](2026-10-14-non-octet-prefix-in-practice.md) | 2026-10-14 |
 | [`ip link` の `BROADCAST,MULTICAST` は、ブロードキャストやマルチキャストを受け付けるという意味か](2026-10-24-broadcast-multicast-flags-in-ip-link.md) | 2026-10-24 |
 
+## プロトコル（ICMP・TCP・UDP）
+
+| 疑問 | 日付 |
+|---|---|
+| [ICMP と TCP・UDP の違い：ping にポートやサーバーはあるのか、ping が通るのに TCP が通らないのはなぜか](2026-10-24-icmp-vs-tcp-udp-and-ping.md) | 2026-10-24 |
+
 ## DHCP
 
 まとまった説明：[dhcp.md](../concepts/dhcp.md)
