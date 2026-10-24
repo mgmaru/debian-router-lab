@@ -33,6 +33,13 @@
 |---|---|
 | [ICMP と TCP・UDP の違い：ping にポートやサーバーはあるのか、ping が通るのに TCP が通らないのはなぜか](2026-10-24-icmp-vs-tcp-udp-and-ping.md) | 2026-10-24 |
 
+## IP Forwarding・ルーターの仕組み
+
+| 疑問 | 日付 |
+|---|---|
+| [IP Forwarding はルーターの機能か：初期状態、専用ルーターとの違い、Docker が転送をオンにする理由](2026-10-24-ip-forwarding-default-and-docker.md) | 2026-10-24 |
+| [専用ルーターはなぜ仕事を 2 つに分けるのか：CPU と ASIC の違い](2026-10-24-router-cpu-vs-asic.md) | 2026-10-24 |
+
 ## DHCP
 
 まとまった説明：[dhcp.md](../concepts/dhcp.md)
