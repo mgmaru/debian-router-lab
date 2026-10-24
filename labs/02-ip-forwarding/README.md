@@ -144,6 +144,32 @@ PING 192.168.22.2 (192.168.22.2) 56(84) bytes of data.
 sudo sysctl -w net.ipv4.ip_forward=0
 ```
 
+### 5. IP Forwarding の永続化（Router VM）
+
+`/etc/sysctl.d/99-router.conf` を作り、再起動しても転送が有効になるようにした（2026-10-25）。
+設定ファイルは [configs/sysctl/99-router.conf](../../configs/sysctl/99-router.conf) に保存した。
+
+```bash
+sudo nano /etc/sysctl.d/99-router.conf
+```
+
+```ini
+# Router VM：Client VM（10.0.0.0/24）のパケットを WAN 側へ転送するため（labs/02）
+net.ipv4.ip_forward = 1
+```
+
+```bash
+sudo sysctl --system    # 今のカーネルに反映する
+sudo reboot             # 起動時にも読まれるか確かめる
+```
+
+再起動後：
+
+```text
+kajih@debian-router:~$ sudo sysctl net.ipv4.ip_forward
+net.ipv4.ip_forward = 1
+```
+
 ## Result
 
 ### 1. 現在の設定の確認（Router VM）
@@ -238,6 +264,12 @@ IPアドレスはそのままで、MACアドレスは区間ごとに付け替え
 
 `net.ipv4.ip_forward` はRouter VM全体のスイッチで、「ens33 と ens37 の間だけ」のような指定はできない。通す・通さないを細かく決めるのは、ファイアウォールの役目である。
 
+### 5. IP Forwarding の永続化（Router VM）
+
+- 再起動後も `net.ipv4.ip_forward = 1` だった。起動時に `systemd-sysctl` サービスが `/etc/sysctl.d/99-router.conf` を読み、カーネルに設定している
+- ファイル名は `.conf` で終わる必要がある。`99-` は、ほかの設定ファイルより後に読ませて、自分の設定を優先させるための慣習（[persistent-config.md](../../docs/concepts/persistent-config.md#カーネルの設定etcsysctld)）
+- これ以降、Router VMは常に転送する。ただし NAT がまだ無いので、Client VMから外への通信は、Experiment 3 と同じく返事が戻らない
+
 ## Learned
 
 - **IP Forwarding** ＝ 自分宛てではないパケットを受け取ったときに、捨てずに別のNICから送り出すことを許可する、カーネルの設定（`net.ipv4.ip_forward`）。Linux の初期状態は `0`（無効）
@@ -246,3 +278,4 @@ IPアドレスはそのままで、MACアドレスは区間ごとに付け替え
 - 転送しても、**IPアドレスは書き換わらない**。書き換わるのはMACアドレスとTTL
 - 転送できても、**帰り道**が無いと返事は戻らない。相手が送信元（`10.0.0.0/24`）への返し方を知らないため。NATで解決する
 - `sysctl` はカーネルの設定値を読み書きするコマンド（`/proc/sys/` の下のファイル）。Debian の一般ユーザーでは `PATH` に無いので、`sudo` を付ける
+- カーネルの設定の永続化 ＝ `/etc/sysctl.d/` に `.conf` のファイルを書くこと。起動時に `systemd-sysctl` が読む。今すぐ反映するには `sudo sysctl --system`、最後に再起動して確かめる

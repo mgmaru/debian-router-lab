@@ -48,7 +48,7 @@
 ## Phase 3 - Router Fundamentals
 
 - [x] IP Forwardingを学習
-- [ ] IP Forwardingを有効化
+- [x] IP Forwardingを有効化
 - [ ] Routing Tableを学習
 - [ ] Client → Router → WAN のPacket経路を確認
 - [ ] NATを学習
