@@ -49,7 +49,7 @@
 
 - [x] IP Forwardingを学習
 - [x] IP Forwardingを有効化
-- [ ] Routing Tableを学習
+- [x] Routing Tableを学習
 - [x] Client → Router → WAN のPacket経路を確認
 - [ ] NATを学習
 - [ ] nftablesでNATを設定
