@@ -65,6 +65,37 @@ kajih@debian-router:~$ ip route get 8.8.8.8 from 10.0.0.10 iif ens37
     cache iif ens37
 ```
 
+### 3. 転送で書き換わるものを観察する（Router VM / Client VM）
+
+Router VMで、ens37（LAN側）とens33（WAN側）の `tcpdump` をそれぞれ別のターミナルで動かしたまま、Client VMから `8.8.8.8` へ `ping -c 3` を打った（2026-10-25）。
+`-e` でMACアドレスを、`-v` で `ttl` などのIPヘッダの中身を表示した。
+
+Router VM ens37（LAN側）：
+
+```text
+kajih@debian-router:~$ sudo tcpdump -i ens37 -n -e -v icmp
+tcpdump: listening on ens37, link-type EN10MB (Ethernet), snapshot length 262144 bytes
+19:45:54.018043 00:0c:29:20:6c:ff > 00:0c:29:73:2d:6b, ethertype IPv4 (0x0800), length 98: (tos 0x0, ttl 64, id 18861, offset 0, flags [DF], proto ICMP (1), length 84)
+    10.0.0.10 > 8.8.8.8: ICMP echo request, id 6, seq 1, length 64
+19:45:55.031053 00:0c:29:20:6c:ff > 00:0c:29:73:2d:6b, ethertype IPv4 (0x0800), length 98: (tos 0x0, ttl 64, id 19106, offset 0, flags [DF], proto ICMP (1), length 84)
+    10.0.0.10 > 8.8.8.8: ICMP echo request, id 6, seq 2, length 64
+19:45:56.055145 00:0c:29:20:6c:ff > 00:0c:29:73:2d:6b, ethertype IPv4 (0x0800), length 98: (tos 0x0, ttl 64, id 19248, offset 0, flags [DF], proto ICMP (1), length 84)
+    10.0.0.10 > 8.8.8.8: ICMP echo request, id 6, seq 3, length 64
+```
+
+Router VM ens33（WAN側）：
+
+```text
+kajih@debian-router:~$ sudo tcpdump -i ens33 -n -e -v icmp
+tcpdump: listening on ens33, link-type EN10MB (Ethernet), snapshot length 262144 bytes
+19:45:54.018079 00:0c:29:73:2d:61 > 00:50:56:f9:12:3d, ethertype IPv4 (0x0800), length 98: (tos 0x0, ttl 63, id 18861, offset 0, flags [DF], proto ICMP (1), length 84)
+    10.0.0.10 > 8.8.8.8: ICMP echo request, id 6, seq 1, length 64
+19:45:55.031062 00:0c:29:73:2d:61 > 00:50:56:f9:12:3d, ethertype IPv4 (0x0800), length 98: (tos 0x0, ttl 63, id 19106, offset 0, flags [DF], proto ICMP (1), length 84)
+    10.0.0.10 > 8.8.8.8: ICMP echo request, id 6, seq 2, length 64
+19:45:56.055155 00:0c:29:73:2d:61 > 00:50:56:f9:12:3d, ethertype IPv4 (0x0800), length 98: (tos 0x0, ttl 63, id 19248, offset 0, flags [DF], proto ICMP (1), length 84)
+    10.0.0.10 > 8.8.8.8: ICMP echo request, id 6, seq 3, length 64
+```
+
 ## Result
 
 ### 1. Client VMの経路を確認する
@@ -133,6 +164,47 @@ Router VM：8.8.8.8 → default via 192.168.22.2 → ens33 から VMware NAT へ
 
 Client VMもRouter VMも、同じ「ロンゲストマッチで行を選ぶ → `via` の相手に渡す」で、次に渡す相手を決めている。各機器は**次の1台**だけを決め、最終的な届け先までの経路全体は知らない。
 
+### 3. 転送で書き換わるものを観察する（Router VM / Client VM）
+
+Router VMは転送するときに、**MACアドレスとTTLだけ**を書き換えた。IPアドレスはそのままだった。
+labs/02 で「見えていないが、起きていること」とした書き換えを、実際に確かめられた。
+
+seq 1 の比較：
+
+| 項目 | ens37（入ってきたとき） | ens33（出ていくとき） | 変化 |
+|---|---|---|---|
+| MACの送信元 | `00:0c:29:20:6c:ff`（Client VMのens33） | `00:0c:29:73:2d:61`（**Router VMのens33**） | **書き換わった** |
+| MACの宛先 | `00:0c:29:73:2d:6b`（Router VMのens37） | `00:50:56:f9:12:3d`（**VMware NAT**） | **書き換わった** |
+| `ttl` | `64` | `63` | **1減った** |
+| IPの送信元・宛先 | `10.0.0.10 > 8.8.8.8` | `10.0.0.10 > 8.8.8.8` | 変わらない |
+| `id` | `18861` | `18861` | 変わらない |
+| `tos` / `flags [DF]` / `length 84` | `0x0` / `[DF]` / `84` | 同じ | 変わらない |
+
+- Router VMのens33のMAC（`00:0c:29:73:2d:61`）は labs/01 の `ip link`、VMware NATのMAC（`00:50:56:f9:12:3d`）は labs/01 の `ip neigh` の `192.168.22.2` の行と一致する。Router VMは、ルーティングテーブルで「`192.168.22.2` に渡す」と決め（Result 2）、近隣テーブルでそのMACを調べて宛先にしている
+- `id`（IPパケットの通し番号）が両側で同じなので、**同じパケットが転送されている**
+
+| seq | ens37 に届いた時刻 | ens33 から出た時刻 | 差 |
+|---|---|---|---|
+| 1 | `19:45:54.018043` | `19:45:54.018079` | 約36マイクロ秒 |
+| 2 | `19:45:55.031053` | `19:45:55.031062` | 約9マイクロ秒 |
+| 3 | `19:45:56.055145` | `19:45:56.055155` | 約10マイクロ秒 |
+
+#### MACアドレスは区間ごとに付け替えられる
+
+```text
+LANの区間：Client VMのens33  → Router VMのens37   （MAC：00:0c:29:20:6c:ff → 00:0c:29:73:2d:6b）
+WANの区間：Router VMのens33 → VMware NAT         （MAC：00:0c:29:73:2d:61 → 00:50:56:f9:12:3d）
+IP      ：10.0.0.10 → 8.8.8.8                    （最初から最後まで同じ）
+```
+
+MACアドレスは同じネットワークの中だけで使う宛先なので、ルーターを通るたびに付け替えられる。IPアドレスは最終的な届け先なので、変わらない。
+
+#### TTLはルーターを通るたびに1減る
+
+TTL（Time To Live）は、パケットの**残り寿命**である。ルーターは転送するたびに1減らし、0になったら捨てて、送信元に ICMP の「Time to live exceeded」を返す。経路がループしても、パケットが回り続けないための仕組み。いつ減るのか、初期値の64で足りるのかは [TTL はいつ減り、何のためにあるのか](../../docs/questions/2026-10-25-ttl-decrement-and-purpose.md) を参照。
+
+TTLが変わるとIPヘッダの中身が変わるので、Router VMはIPヘッダのチェックサム（壊れていないかを確かめる値）も計算し直している。`-vv` を付けると `cksum` として表示される。
+
 ## Learned
 
 - `ip route get <宛先>` で、その宛先がルーティングテーブルのどの行に当てはまり、どこへ渡されるかを確かめられる
@@ -141,3 +213,5 @@ Client VMもRouter VMも、同じ「ロンゲストマッチで行を選ぶ → 
 - 転送するときの経路は `ip route get <宛先> from <送信元> iif <受信したNIC>` で調べる。`iif` を付けないと、自分で送るときの経路になる
 - 転送するパケットは、送信元が書き換わらない（`src` が出ない）。Client VMの `10.0.0.10` のまま WAN へ出ていく
 - Client VMもRouter VMも、ルーティングテーブルで**次の1台**だけを決める。経路全体を知っている機器はいない
+- 転送で書き換わるのは**MACアドレスとTTL**。MACアドレスは区間ごとに付け替えられ、IPアドレスは最初から最後まで変わらない
+- TTLはルーターを通るたびに1減り、0になると捨てられる。経路がループしても、パケットが回り続けないため
