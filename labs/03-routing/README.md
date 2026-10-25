@@ -96,6 +96,19 @@ tcpdump: listening on ens33, link-type EN10MB (Ethernet), snapshot length 262144
     10.0.0.10 > 8.8.8.8: ICMP echo request, id 6, seq 3, length 64
 ```
 
+### 4. TTL=1 で送る（Client VM）
+
+Client VMから、TTLを1にして `8.8.8.8` へ `ping` を打った（2026-10-25）。`-t` でTTLの最初の値を指定できる。
+
+```text
+kajih@debian-client:~$ ping -c 1 -t 1 8.8.8.8
+PING 8.8.8.8 (8.8.8.8) 56(84) bytes of data.
+From 10.0.0.1 icmp_seq=1 Time to live exceeded
+
+--- 8.8.8.8 ping statistics ---
+1 packets transmitted, 0 received, +1 errors, 100% packet loss, time 0ms
+```
+
 ## Result
 
 ### 1. Client VMの経路を確認する
@@ -205,6 +218,47 @@ TTL（Time To Live）は、パケットの**残り寿命**である。ルータ�
 
 TTLが変わるとIPヘッダの中身が変わるので、Router VMはIPヘッダのチェックサム（壊れていないかを確かめる値）も計算し直している。`-vv` を付けると `cksum` として表示される。
 
+### 4. TTL=1 で送る（Client VM）
+
+Router VMは、TTLが尽きるパケットを**捨てて、送信元に ICMP の「Time to live exceeded」を返した**。
+
+```text
+Client VM：TTL=1 で 8.8.8.8 へ送る
+   ↓
+Router VM：転送すると決まった → TTLを確認 → 1以下なので転送できない
+   ↓ パケットを捨てる
+   ↓ 代わりに、送信元（10.0.0.10）へ ICMP「Time to live exceeded」を送る
+Client VM：From 10.0.0.1 ... Time to live exceeded と表示
+```
+
+| 部分 | 意味 |
+|---|---|
+| `From 10.0.0.1` | エラーを返したのは**Router VM**。`8.8.8.8` からの返事ではない |
+| `icmp_seq=1` | 1つ目の echo request についてのエラー。エラーの中に捨てたパケットの先頭が入っているので、Client VMはどれについてのエラーか分かる |
+| `Time to live exceeded` | ICMP の Time Exceeded（Type 11）、Code 0（転送中にTTLが尽きた） |
+| `0 received, +1 errors` | echo reply は0個、エラーが1個届いた |
+| `100% packet loss` | `8.8.8.8` からの返事は来なかった |
+
+#### labs/02 で黙って捨てたときとの違い
+
+| 場面 | Router VMの動き | Client VMから見えること |
+|---|---|---|
+| `ip_forward = 0`（labs/02） | 黙って捨てる | 何も返らない（`100% packet loss` だけ） |
+| TTLが尽きた（今回） | 捨てて、**ICMPで知らせる** | `From 10.0.0.1 ... Time to live exceeded` |
+
+このエラーは、NATが無くても Client VM に届いた。返したのはRouter VM自身で、Client VMと同じLAN（`10.0.0.0/24`）にいるので、帰り道に困らない。
+
+#### traceroute の仕組み
+
+`traceroute` は、TTLを1、2、3…と増やしながら送り、各ルーターが返す「Time to live exceeded」の送信元から、経路を1台ずつ調べる。
+
+```text
+TTL=1 → 1台目（10.0.0.1）が返す        ← 今回確かめた
+TTL=2 → 2台目（192.168.22.2）が返す…はず
+```
+
+今はNATが無いので、2台目から先の返事は Client VM に戻らない。NATを設定した後（labs/04）に試すと、経路が1台ずつ見えるはずである。
+
 ## Learned
 
 - `ip route get <宛先>` で、その宛先がルーティングテーブルのどの行に当てはまり、どこへ渡されるかを確かめられる
@@ -215,3 +269,4 @@ TTLが変わるとIPヘッダの中身が変わるので、Router VMはIPヘッ�
 - Client VMもRouter VMも、ルーティングテーブルで**次の1台**だけを決める。経路全体を知っている機器はいない
 - 転送で書き換わるのは**MACアドレスとTTL**。MACアドレスは区間ごとに付け替えられ、IPアドレスは最初から最後まで変わらない
 - TTLはルーターを通るたびに1減り、0になると捨てられる。経路がループしても、パケットが回り続けないため
+- TTLが尽きるパケットを受け取ったルーターは、捨てて、送信元に ICMP の「**Time to live exceeded**」を返す。`ip_forward = 0` で黙って捨てるのとは違い、送信元に知らせる。`traceroute` はこれを使って経路を調べる
