@@ -13,6 +13,7 @@
 | [`ip addr` にデフォルトゲートウェイは表示されないのか](2026-10-11-ip-addr-and-default-gateway.md) | 2026-10-11 |
 | [`ip route` とルーティングテーブルとは何か](2026-10-11-what-is-ip-route-and-routing-table.md) | 2026-10-11 |
 | [`192.168.22.2` は何か：VMware NAT とデフォルトゲートウェイ](2026-10-11-what-is-vmware-nat-gateway.md) | 2026-10-11 |
+| [ロンゲストマッチとは何か：`/32` と `/0` の数字はサブネットと同じものか](2026-10-25-longest-match-and-prefix-length.md) | 2026-10-25 |
 
 ## IP アドレス・NIC
 
