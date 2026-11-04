@@ -29,3 +29,5 @@ nftables
 ルーター VM が送信元を自分の外側の IP（`192.168.22.129`）に書き換えて送り出し、返事を受け取ったらクライアント VM に戻す、という処理（**NAT / マスカレード**）が必要になる。
 
 nftables で設定し、`/etc/nftables.conf` ＋ `systemctl enable nftables` で永続化する。
+
+NAT の仕組みと、NAT が無いときに返事が戻らない理由は [docs/concepts/nat.md](../../docs/concepts/nat.md) にまとめた。
