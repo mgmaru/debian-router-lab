@@ -171,6 +171,7 @@ Client VM がインターネットと通信するには、**両方**が必要で
 
 ## 関連
 
+- [nftables](nftables.md)：関所（フック）と table・chain・rule
 - [Routing](routing.md)：デフォルトゲートウェイ
 - [labs/03-routing](../../labs/03-routing/README.md)：転送するパケットは送信元が書き換わらないことの確認
 - [labs/04-nat](../../labs/04-nat/README.md)：nftables でマスカレードを設定する

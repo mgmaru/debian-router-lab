@@ -14,5 +14,6 @@
 | [Routing](routing.md) | デフォルトゲートウェイ：なぜ必要か、設定のしかた、Router VM に `gateway` を書かなかった理由 |
 | [Neighbor Table（近隣テーブル）](neighbor.md) | 近隣テーブルと ARP、ルーティングテーブルとの役割分担、`ip neigh` の読み方 |
 | [NAT](nat.md) | NAT の本質（出ていくときに送信元を書き換える）、NAT が無いと返事が戻らない理由（tcpdump の結果つき）、行きの書き換えと帰りの書き戻し（conntrack）、IP フォワードとの役割の違い、何段も重なる NAT |
+| [nftables](nftables.md) | カーネルとは何か（カーネル空間とユーザー空間、カーネルの動き方を決める3種類のもの）、nftables とルーティングテーブルの違い、関所（Netfilter のフック）の正体と5つの関所、table・chain・rule の役割、chain の type と置ける関所、関所の名前の確かめ方、マスカレードの入れ方と永続化、ほかのツール（iptables など）との関係とぶつかったときの結果 |
 | [DHCP](dhcp.md) | DHCP が配るもの、やりとり（DORA）と、1 回目・2 回目以降の問い合わせの宛先、受け取った内容の確認方法、静的 IP との使い分け |
 | [一時的な設定と永続的な設定](persistent-config.md) | `ip` コマンドなどの一時的な設定と、`/etc/network/interfaces` などの永続的な設定の違い、設定ごとの永続化の場所、`/etc/sysctl.d/` の書き方と読まれる順番、`/etc` と `/usr` の使い分け、調べ方 |

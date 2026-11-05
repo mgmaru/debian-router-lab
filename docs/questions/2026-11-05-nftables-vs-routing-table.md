@@ -4,6 +4,7 @@
 
 関連：
 
+- [nftables](../concepts/nftables.md)（この疑問と、その後の議論を整理したもの）
 - [NAT](../concepts/nat.md)（NAT の本質、行きの書き換えと帰りの書き戻し）
 - [NAT は送信元を取り外して付け替えるのか](2026-11-05-nat-rewrites-header-field.md)
 - [labs/04-nat](../../labs/04-nat/README.md)
