@@ -162,6 +162,102 @@ table ip nat {
 
 最初は閉じの `'` を付け忘れて、シェルが続きの入力を待つ `>` が出た。`Ctrl + C` で取り消して打ち直した。
 
+rule を足す：
+
+```text
+kajih@debian-router:~$ sudo nft add rule ip nat postrouting oifname "ens33" masquerade
+kajih@debian-router:~$ sudo nft list ruleset
+table ip nat {
+	chain postrouting {
+		type nat hook postrouting priority srcnat; policy accept;
+		oifname "ens33" masquerade
+	}
+}
+kajih@debian-router:~$ sudo nft list hooks
+family ip {
+	hook prerouting {
+		-0000000400 ipv4_conntrack_defrag [nf_defrag_ipv4]
+		-0000000200 ipv4_conntrack_in [nf_conntrack]
+		-0000000100 nf_nat_ipv4_pre_routing [nf_nat]
+	}
+	hook input {
+		+0000000100 nf_nat_ipv4_local_in [nf_nat]
+		+2147483647 nf_confirm [nf_conntrack]
+	}
+	hook output {
+		-0000000400 ipv4_conntrack_defrag [nf_defrag_ipv4]
+		-0000000200 ipv4_conntrack_local [nf_conntrack]
+		-0000000100 nf_nat_ipv4_local_fn [nf_nat]
+	}
+	hook postrouting {
+		-0000000225 apparmor_ip_postroute
+		+0000000100 nf_nat_ipv4_out [nf_nat]
+		+2147483647 nf_confirm [nf_conntrack]
+	}
+}
+family ip6 {
+	hook postrouting {
+		-0000000225 apparmor_ip_postroute
+	}
+}
+```
+
+### 6. マスカレードを入れた状態で、WAN へ ping を送る（Router VM / Client VM）
+
+Router VM で ens37 と ens33 の `tcpdump` を別のターミナルで動かしたまま、Client VM から `ping -c 3 8.8.8.8` を打った（2026-11-05）。
+
+Client VM：
+
+```text
+kajih@debian-client:~$ ping -c 3 8.8.8.8
+PING 8.8.8.8 (8.8.8.8) 56(84) bytes of data.
+64 bytes from 8.8.8.8: icmp_seq=1 ttl=127 time=14.8 ms
+64 bytes from 8.8.8.8: icmp_seq=2 ttl=127 time=13.6 ms
+64 bytes from 8.8.8.8: icmp_seq=3 ttl=127 time=12.8 ms
+
+--- 8.8.8.8 ping statistics ---
+3 packets transmitted, 3 received, 0% packet loss, time 2003ms
+rtt min/avg/max/mdev = 12.772/13.721/14.817/0.841 ms
+```
+
+Router VM ens37（LAN側）：
+
+```text
+kajih@debian-router:~$ sudo tcpdump -n -e -v -i ens37 icmp
+tcpdump: listening on ens37, link-type EN10MB (Ethernet), snapshot length 262144 bytes
+13:55:30.544482 00:0c:29:20:6c:ff > 00:0c:29:73:2d:6b, ethertype IPv4 (0x0800), length 98: (tos 0x0, ttl 64, id 11806, offset 0, flags [DF], proto ICMP (1), length 84)
+    10.0.0.10 > 8.8.8.8: ICMP echo request, id 13, seq 1, length 64
+13:55:30.558949 00:0c:29:73:2d:6b > 00:0c:29:20:6c:ff, ethertype IPv4 (0x0800), length 98: (tos 0x0, ttl 127, id 35149, offset 0, flags [none], proto ICMP (1), length 84)
+    8.8.8.8 > 10.0.0.10: ICMP echo reply, id 13, seq 1, length 64
+13:55:31.546472 00:0c:29:20:6c:ff > 00:0c:29:73:2d:6b, ethertype IPv4 (0x0800), length 98: (tos 0x0, ttl 64, id 11855, offset 0, flags [DF], proto ICMP (1), length 84)
+    10.0.0.10 > 8.8.8.8: ICMP echo request, id 13, seq 2, length 64
+13:55:31.559014 00:0c:29:73:2d:6b > 00:0c:29:20:6c:ff, ethertype IPv4 (0x0800), length 98: (tos 0x0, ttl 127, id 16890, offset 0, flags [none], proto ICMP (1), length 84)
+    8.8.8.8 > 10.0.0.10: ICMP echo reply, id 13, seq 2, length 64
+13:55:32.548064 00:0c:29:20:6c:ff > 00:0c:29:73:2d:6b, ethertype IPv4 (0x0800), length 98: (tos 0x0, ttl 64, id 12027, offset 0, flags [DF], proto ICMP (1), length 84)
+    10.0.0.10 > 8.8.8.8: ICMP echo request, id 13, seq 3, length 64
+13:55:32.559976 00:0c:29:73:2d:6b > 00:0c:29:20:6c:ff, ethertype IPv4 (0x0800), length 98: (tos 0x0, ttl 127, id 50337, offset 0, flags [none], proto ICMP (1), length 84)
+    8.8.8.8 > 10.0.0.10: ICMP echo reply, id 13, seq 3, length 64
+```
+
+Router VM ens33（WAN側）：
+
+```text
+kajih@debian-router:~$ sudo tcpdump -n -e -v -i ens33 icmp
+tcpdump: listening on ens33, link-type EN10MB (Ethernet), snapshot length 262144 bytes
+13:55:30.544608 00:0c:29:73:2d:61 > 00:50:56:f9:12:3d, ethertype IPv4 (0x0800), length 98: (tos 0x0, ttl 63, id 11806, offset 0, flags [DF], proto ICMP (1), length 84)
+    192.168.22.129 > 8.8.8.8: ICMP echo request, id 13, seq 1, length 64
+13:55:30.558932 00:50:56:f9:12:3d > 00:0c:29:73:2d:61, ethertype IPv4 (0x0800), length 98: (tos 0x0, ttl 128, id 35149, offset 0, flags [none], proto ICMP (1), length 84)
+    8.8.8.8 > 192.168.22.129: ICMP echo reply, id 13, seq 1, length 64
+13:55:31.546513 00:0c:29:73:2d:61 > 00:50:56:f9:12:3d, ethertype IPv4 (0x0800), length 98: (tos 0x0, ttl 63, id 11855, offset 0, flags [DF], proto ICMP (1), length 84)
+    192.168.22.129 > 8.8.8.8: ICMP echo request, id 13, seq 2, length 64
+13:55:31.558935 00:50:56:f9:12:3d > 00:0c:29:73:2d:61, ethertype IPv4 (0x0800), length 98: (tos 0x0, ttl 128, id 16890, offset 0, flags [none], proto ICMP (1), length 84)
+    8.8.8.8 > 192.168.22.129: ICMP echo reply, id 13, seq 2, length 64
+13:55:32.548108 00:0c:29:73:2d:61 > 00:50:56:f9:12:3d, ethertype IPv4 (0x0800), length 98: (tos 0x0, ttl 63, id 12027, offset 0, flags [DF], proto ICMP (1), length 84)
+    192.168.22.129 > 8.8.8.8: ICMP echo request, id 13, seq 3, length 64
+13:55:32.559925 00:50:56:f9:12:3d > 00:0c:29:73:2d:61, ethertype IPv4 (0x0800), length 98: (tos 0x0, ttl 128, id 50337, offset 0, flags [none], proto ICMP (1), length 84)
+    8.8.8.8 > 192.168.22.129: ICMP echo reply, id 13, seq 3, length 64
+```
+
 ## Result
 
 ### 1. NAT が無い状態で、WAN へ ping を送る（Router VM / Client VM）
@@ -230,3 +326,48 @@ Client VM のパケットにも `192.168.22.129` を使わせるのが、これ�
 - 帰りの返事の宛先を書き戻す処理が、prerouting に登録されているのが見えた。帰り用の rule を自分で書かなくてよいのは、このため
 - conntrack の処理は、まだ出ていない。rule を入れた後に確かめる
 - `family ip6` は変わらなかった。作ったのは `table ip`（IPv4 用）だから
+- rule を足すと、`list ruleset` の chain の中に `oifname "ens33" masquerade` が増えた
+- `list hooks` では、chain だけのときには無かった **conntrack の処理が現れた**。`masquerade` は帰りの書き戻しに conntrack の記録が必要なので、rule を入れた時点でカーネルが conntrack を関所に登録した
+
+| 処理 | 関所 | priority | 役割 |
+|---|---|---|---|
+| `ipv4_conntrack_defrag` | prerouting、output | -400 | 分割されて届いたパケットを組み立て直す。conntrack がポート番号などを読めるようにするため |
+| `ipv4_conntrack_in` | prerouting | -200 | 届いたパケットが記録済みの通信のものかを調べる。新しい通信なら記録を作り始める |
+| `ipv4_conntrack_local` | output | -200 | 同じことを、Router VM 自身が送るパケットに対して行う |
+| `nf_confirm` | input、postrouting | +2147483647（最大） | いちばん最後に、新しい通信の記録を確定する。途中で捨てられたパケットの記録は残さない |
+
+- prerouting の中は「組み立て直す（-400）→ conntrack で記録を調べる（-200）→ NAT で宛先を書き戻す（-100）→ ルーティング判断」の順。conntrack が NAT より先なので、NAT は記録を使って書き戻せる。全部がルーティング判断より前なので、書き戻した宛先 `10.0.0.10` で ens37 への経路が選ばれる
+- forward には何も登録されていない。転送するパケットも prerouting と postrouting を通るので、そこで conntrack と NAT が済む
+
+### 6. マスカレードを入れた状態で、WAN へ ping を送る（Router VM / Client VM）
+
+**Client VM から 8.8.8.8 へ ping が通った**（3 packets transmitted, 3 received）。Experiment 1 では返事が1つも来なかった。
+
+行き（echo request、seq 1）：
+
+| | ens37（LAN 側に届いた） | ens33（WAN 側から出た） | 変わったか |
+|---|---|---|---|
+| 送信元 MAC → 宛先 MAC | `00:0c:29:20:6c:ff` → `00:0c:29:73:2d:6b` | `00:0c:29:73:2d:61` → `00:50:56:f9:12:3d` | **付け替え** |
+| 送信元 IP | `10.0.0.10` | **`192.168.22.129`** | **マスカレードで書き換え** |
+| 宛先 IP | `8.8.8.8` | `8.8.8.8` | そのまま |
+| TTL | 64 | 63 | 転送で1減った |
+| IP ヘッダーの id | 11806 | 11806 | **そのまま** |
+| ICMP の id・seq | 13・1 | 13・1 | そのまま |
+
+帰り（echo reply、seq 1）：
+
+| | ens33（WAN 側に届いた） | ens37（LAN 側から出た） | 変わったか |
+|---|---|---|---|
+| 送信元 IP | `8.8.8.8` | `8.8.8.8` | そのまま |
+| 宛先 IP | `192.168.22.129` | **`10.0.0.10`** | **conntrack の記録で書き戻し** |
+| TTL | 128 | 127 | 転送で1減った |
+| IP ヘッダーの id | 35149 | 35149 | **そのまま** |
+| 時刻 | 13:55:30.558932 | 13:55:30.558949 | 約 0.017 ミリ秒で書き戻して転送した |
+
+- 行きは送信元が `192.168.22.129` に書き換わり、帰りは宛先が `10.0.0.10` に書き戻された。帰り用の rule は書いていないので、Experiment 5 で見た prerouting の conntrack と `nf_nat` が書き戻したことになる
+- IP ヘッダーの id が Router VM の前後で同じ。IP ヘッダーは作り直されず、同じヘッダーの欄が書き換えられている（[質問63](../../docs/questions/2026-11-05-nat-rewrites-header-field.md)）。MAC アドレスは付け替えられている
+- ICMP の id（13）は書き換わらなかった。Client が1台なので、番号をずらす必要がなかったため
+
+#### 予想していなかったこと：帰りの TTL が 128
+
+ens33 に届いた返事の TTL が 128 だった。8.8.8.8 から何台ものルーターを通ってきたなら、128 より小さくなっているはずである。128 は Windows が最初に付ける値なので、**VMware NAT（Windows 上で動いている）が返事のパケットを作り直して Router VM に渡している**可能性が高い。Router VM の中からは確かめきれないので、「そう考えられる」という段階である。

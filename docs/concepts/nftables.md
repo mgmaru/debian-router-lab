@@ -243,7 +243,52 @@ family ip6 {
 
 - `-0000000225` は priority（順番）。小さいほど先に呼ばれる
 - `apparmor_ip_postroute` は、AppArmor（Debian に最初から入っているセキュリティの仕組み）のためにカーネルが登録した処理。パケットを書き換えたり捨てたりはしない
-- conntrack は出ていない。今の Linux では、conntrack は必要になるまで関所に登録されないためと考えられる（NAT の chain を作った後に確かめる）
+- conntrack は出ていない。今の Linux では、conntrack は必要になるまで関所に登録されない
+
+NAT の chain を作り、`masquerade` の rule を入れた後の Router VM（2026-11-05）：
+
+```text
+kajih@debian-router:~$ sudo nft list hooks
+family ip {
+	hook prerouting {
+		-0000000400 ipv4_conntrack_defrag [nf_defrag_ipv4]
+		-0000000200 ipv4_conntrack_in [nf_conntrack]
+		-0000000100 nf_nat_ipv4_pre_routing [nf_nat]
+	}
+	hook input {
+		+0000000100 nf_nat_ipv4_local_in [nf_nat]
+		+2147483647 nf_confirm [nf_conntrack]
+	}
+	hook output {
+		-0000000400 ipv4_conntrack_defrag [nf_defrag_ipv4]
+		-0000000200 ipv4_conntrack_local [nf_conntrack]
+		-0000000100 nf_nat_ipv4_local_fn [nf_nat]
+	}
+	hook postrouting {
+		-0000000225 apparmor_ip_postroute
+		+0000000100 nf_nat_ipv4_out [nf_nat]
+		+2147483647 nf_confirm [nf_conntrack]
+	}
+}
+```
+
+| 登録された時点 | 現れたもの |
+|---|---|
+| NAT の chain を作ったとき | `[nf_nat]`（NAT の部品）が prerouting・input・output・postrouting に |
+| `masquerade` の rule を入れたとき | `[nf_conntrack]`（conntrack）と `[nf_defrag_ipv4]`（組み立て直し）が現れた。`masquerade` は帰りの書き戻しに conntrack の記録が必要だから |
+
+prerouting の中の並び（priority の小さい順）に、帰りの書き戻しの仕組みがそのまま表れています。
+
+```text
+ ① prerouting
+   -400  組み立て直す（defrag）
+   -200  conntrack で記録を調べる   ← 「これは 10.0.0.10 の通信の返事だ」とわかる
+   -100  NAT で宛先を書き戻す        ← その記録を使って 10.0.0.10 に戻す
+   ────  ルーティング判断             ← 宛先が 10.0.0.10 なので ens37 へ
+```
+
+- `nf_confirm`（priority `+2147483647` = 最大）は、いちばん最後に新しい通信の記録を確定する。途中で捨てられたパケットの記録は残さない
+- forward には何も登録されない。転送するパケットも prerouting と postrouting を通るので、そこで conntrack と NAT が済む
 
 ### `list ruleset` と `list hooks` の違い
 
@@ -370,11 +415,139 @@ table ip nat
  └─ chain prerouting   →  prerouting の関所に置く（宛先の書き換え。ポート転送など）
 ```
 
-**何のためか**：用途ごとに整理するため。
+#### table はパケットの処理に関係しない
 
-- **用途で分けられる**：NAT 用の table と、ファイアウォール用の table（labs/05）を別にしておける
-- **まとめて消せる**：`sudo nft delete table ip nat` で、NAT の設定だけを丸ごと消せる。ファイアウォールの設定には影響しない
-- **ほかのソフトとぶつからない**：Docker なども自分の table を作って nftables を使う。table が分かれているので、自分のルールと混ざらない
+カーネルが関所でパケットを調べるとき、見ているのは「その関所に登録された chain と、その priority の順番」だけです。どの table に入っているかは、処理の順番にも結果にも関係しません。
+
+```text
+ ⑤ postrouting の関所
+   ├─ chain A（priority 100）   ← table X に入っている
+   └─ chain B（priority 200）   ← table Y に入っている
+   カーネルは priority の順に chain を呼ぶだけ。table の違いは見ていない
+```
+
+「rule を chain に入れて関所に置けば良いのでは」という考えは、**処理の仕組みとしては正しい**です。table は、処理のためではなく**管理のための入れ物**です。rule が1つしかないうちは無くても困らないように見えますが、rule が増えたときや、ほかのソフトと同じカーネルを使うときに役に立ちます。
+
+#### table がある理由
+
+**1. 名前がぶつからない**
+
+chain の名前は、**table の中でだけ**重ならなければよい決まりです。
+
+```text
+table ip nat        （自分）     → chain postrouting
+table ip docker_nat （Docker）   → chain postrouting   ← 同じ名前でもぶつからない
+```
+
+table が無いと、カーネル全体で chain の名前が1つの空間を共有することになり、ほかのソフトが同じ名前の chain を作った瞬間にぶつかります。
+
+**2. まとめて扱える（持ち主ごとに分けられる）**
+
+| 操作 | 効果 |
+|---|---|
+| `sudo nft delete table ip nat` | 自分の NAT の設定だけを丸ごと消す。ファイアウォールの設定やほかのソフトの table には影響しない |
+| `sudo nft list table ip nat` | 自分の NAT の設定だけを見る |
+
+Docker などのソフトは、自分専用の table を作って、その中だけを管理します。「自分の table の外には手を出さない」というルールで、複数のソフトが同じカーネルを安全に使えます。
+
+**3. 中の chain どうしで、データを共有できる**
+
+table の中には、chain のほかに **set**（IP アドレスなどの一覧）も置けます。set は同じ table の中の chain から共通で使えます。
+
+```text
+table inet fw {
+	set admin_ips {                         ← 管理用の IP の一覧
+		type ipv4_addr
+		elements = { 10.0.0.10 }
+	}
+	chain input {
+		…  ip saddr @admin_ips accept       ← ここでも使う
+	}
+	chain forward {
+		…  ip saddr @admin_ips accept       ← ここでも使う
+	}
+}
+```
+
+一覧を1か所で直せば、両方の chain に効きます。set は table の外からは使えないので、table が「一緒に使うものをまとめる単位」になっています（labs/05 のファイアウォールで使う）。
+
+**4. ファミリーを決める**
+
+table を作るときにファミリー（`ip`、`ip6`、`inet` など）を決めると、中の chain はすべてそのファミリーになります。table が無ければ、chain を作るたびにファミリーを書くことになります。
+
+#### 名前がぶつかってはいけない範囲
+
+table は「**ファミリー + 名前**」の組み合わせで区別されます。ぶつかってはいけないのは、**同じファミリーの中だけ**です。
+
+| 組み合わせ | 一緒に作れるか |
+|---|---|
+| `table ip nat` と `table ip nat` | **作れない**（同じものとして扱われる） |
+| `table ip nat` と `table ip6 nat` | 作れる（ファミリーが違う） |
+| `table ip nat` と `table inet nat` | 作れる（ファミリーが違う） |
+| `table ip nat` と `table ip filter` | 作れる（名前が違う） |
+
+chain も同じ考え方で、**table の中で**名前が重ならなければよい。入れ子の決まりになっています。
+
+```text
+ファミリー ip
+ ├─ table nat        ← ファミリーの中で、table の名前は1つずつ
+ │   ├─ chain postrouting   ← table の中で、chain の名前は1つずつ
+ │   └─ chain prerouting
+ └─ table filter
+     └─ chain postrouting   ← 別の table なので、同じ名前でもよい
+```
+
+**同じ名前で作ろうとすると**：
+
+| コマンド | すでに `table ip nat` があるとき |
+|---|---|
+| `sudo nft add table ip nat` | **エラーにならず、何もしない**（すでにあるものをそのまま使う） |
+| `sudo nft create table ip nat` | エラーになる（`File exists`） |
+
+`add` は「無ければ作る、あればそのまま」という動きです。そのため、2つのソフトがたまたま同じ名前の table を使うと、エラーにならずに**1つの table を共有してしまいます**。
+
+```text
+ 自分：     sudo nft add table ip nat → chain postrouting を作る
+ ソフト X： sudo nft add table ip nat → 同じ table に自分の chain を作る
+
+ ソフト X が終了時に「自分の table を片付ける」：
+            sudo nft delete table ip nat
+            → 自分の chain まで丸ごと消える
+```
+
+table は持ち主ごとに分ける入れ物なので、名前がぶつかると持ち主の区別ができなくなります。そのため、nftables を使うソフトは、ほかとぶつかりにくい自分専用の名前を付けるのが普通です（例：firewalld は `firewalld` という名前の table を使う）。
+
+**このラボでは**：
+
+- Router VM には、nftables を使うほかのソフトを入れていない（`list hooks` で確認済み）。そのため、`nat` のような一般的な名前でも問題ない
+- Phase 6 で `routerd` が nftables を操作するようになったら、`routerd` 専用の名前（`routerd_nat` など）にする。手で入れた設定やほかのソフトとぶつからないようにするため
+
+#### table は「ファミリーごと」ではなく「用途・持ち主ごと」
+
+1つの table は必ず1つのファミリーを持ちますが、**同じファミリーの table を、いくつでも作れます**。
+
+```text
+table ip nat         ← IPv4、NAT 用（自分）
+table ip filter      ← IPv4、ファイアウォール用（自分）
+table ip docker_nat  ← IPv4、Docker 用
+```
+
+この3つは、どれも同じ `ip` です。それでも table を分けているのは、ファミリーではなく**用途と持ち主**が違うからです。
+
+| 理解のしかた | |
+|---|---|
+| 「table で、ファミリーごとに chain と rule を管理する」 | △ table を分ける主な理由ではない |
+| 「table で、用途・持ち主ごとに chain と rule をまとめて管理する。その table が扱うファミリーも、table で決める」 | ○ |
+
+- **中心になる理由**：1（名前がぶつからない）、2（まとめて扱える）、3（データを共有できる）。どれも「用途・持ち主ごとにまとめる」ためのもの
+- **ついでに決めていること**：4（ファミリー）。table の中の chain が、どの種類のパケットを扱うか
+
+空港のたとえで言うと、table は「担当部署のファイル」です。部署（用途・持ち主）ごとにファイルを分けていて、ファイルの表紙に「国際線用」「国内線用」（ファミリー）と書いてある、というイメージです。
+
+| 観点 | table は必要か |
+|---|---|
+| パケットの処理（どの順に、どう扱うか） | **関係ない**。chain と priority だけで決まる |
+| 管理（名前の区切り、持ち主ごとの分離、データの共有、ファミリー） | **必要** |
 
 「NAT テーブル」という呼び方は、前の世代の仕組みである **iptables** から来ています。iptables には `filter`・`nat` などの決まったテーブルが最初から用意されていました。nftables では table を自分で作り、名前も自由に付けます。
 
@@ -382,7 +555,7 @@ table ip nat
 
 | 入れ物 | 何か | 関所との関係 | 何のためか |
 |---|---|---|---|
-| table | chain をまとめる、いちばん外側の入れ物 | 関係ない | 用途ごとに分ける。まとめて消せる。ほかのソフトとぶつからない |
+| table | chain をまとめる、いちばん外側の入れ物 | 関係ない（パケットの処理にも関係しない） | 用途・持ち主ごとにまとめる。名前がぶつからない。まとめて消せる。set を共有できる。ファミリーを決める |
 | chain | rule を並べた一覧 | **関所に置く** | どの関所で、どの順番で rule を見るかを決める |
 | rule | 条件と動作の1行 | chain の中に並べる | どのパケットを、どう扱うかを書く |
 
@@ -412,6 +585,52 @@ table ip nat {                                                      ← table
 ```
 
 この形は、永続化で書く `/etc/nftables.conf` の書き方と同じです。
+
+### `oifname "ens33" masquerade` の意味
+
+「**ens33 から出ていくパケットなら、送信元を ens33 の IP に書き換える**」という意味です。前半が条件、後半が動作です。
+
+```text
+oifname "ens33"   masquerade
+└─── 条件 ───┘    └─ 動作 ─┘
+```
+
+#### 前半：`oifname "ens33"`（条件）
+
+| 部分 | 意味 |
+|---|---|
+| `oifname` | **o**utput **i**nter**f**ace **name**。パケットが**出ていく NIC の名前** |
+| `"ens33"` | 比べる名前。WAN 側の NIC |
+
+- この rule は postrouting の chain に入っている。postrouting はルーティング判断の**後**なので、この時点では「どの NIC から出ていくか」がもう決まっている。その NIC の名前が `ens33` かどうかを調べる
+- 似た条件に `iifname`（**i**nput **i**nterface **name**、入ってきた NIC の名前）がある
+
+**なぜこの条件が必要か**：条件が無いと、postrouting を通る**すべての**パケットが書き換えられます。たとえば、外から Client VM へ転送するパケット（ens37 から出ていく）の送信元まで `10.0.0.1` に書き換わり、Client VM から見て本当の送り主がわからなくなります。「WAN 側へ出ていくときだけ書き換える」ために、出ていく NIC で絞っています。
+
+| 出ていく NIC | 条件に合うか | どうなるか |
+|---|---|---|
+| ens33（WAN 側） | 合う | 送信元を `192.168.22.129` に書き換える |
+| ens37（LAN 側） | 合わない | `policy accept` でそのまま通す |
+
+#### 後半：`masquerade`（動作）
+
+**送信元 IP を、出ていく NIC の IP に書き換える**動作です。ens33 から出ていくので、ens33 の `192.168.22.129` に書き換わります。
+
+似た動作に `snat` があります。
+
+| 書き方 | 書き換える先 | 向いている場面 |
+|---|---|---|
+| `masquerade` | 出ていく NIC の IP を、**その都度自動で**調べて使う | WAN 側の IP が DHCP でもらったもので、変わることがあるとき |
+| `snat to 192.168.22.129` | **自分で指定した** IP に固定 | WAN 側の IP が固定のとき |
+
+Router VM の ens33 の IP は、VMware の DHCP からもらったものです（`ip route` の `proto dhcp`）。変わる可能性があるので、IP を書かなくて済む `masquerade` を使います。家庭用ルーターでも、プロバイダからもらう IP が変わることがあるので、`masquerade` がよく使われます。
+
+#### まとめ
+
+| 部分 | 種類 | 意味 |
+|---|---|---|
+| `oifname "ens33"` | 条件 | 出ていく NIC が ens33（WAN 側）なら |
+| `masquerade` | 動作 | 送信元を、出ていく NIC の IP（`192.168.22.129`）に書き換える |
 
 ### 自分で書くのは行きの rule だけ
 

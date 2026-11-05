@@ -48,6 +48,9 @@ sudo nft add table <ファミリー> <table 名>
 sudo nft add table ip nat
 ```
 
+- 同じファミリーに同じ名前の table がすでにあると、`add` はエラーにならず何もしない（すでにある table をそのまま使う）
+- すでにあるときにエラーにしたい場合は、`add` の代わりに `create` を使う（`File exists` になる）
+
 ### chain を作る
 
 ```text
@@ -90,12 +93,14 @@ sudo nft add rule ip nat postrouting oifname "ens33" masquerade
 - `add rule` は、chain の**いちばん下**に足す
 - `insert rule` は、chain の**いちばん上**に足す。rule は上から順に見られるので、先に見てほしい rule は `insert` で入れる
 
+`oifname "ens33" masquerade` の詳しい意味（条件が必要な理由など）は、[docs/concepts/nftables.md](../concepts/nftables.md) の「`oifname "ens33" masquerade` の意味」を参照してください。
+
 よく使う条件と動作：
 
 | 条件 | 意味 |
 |---|---|
-| `oifname "ens33"` | 出ていく NIC が ens33 |
-| `iifname "ens37"` | 入ってきた NIC が ens37 |
+| `oifname "ens33"` | 出ていく NIC が ens33（**o**utput **i**nter**f**ace **name**） |
+| `iifname "ens37"` | 入ってきた NIC が ens37（**i**nput **i**nter**f**ace **name**） |
 | `ip saddr 10.0.0.0/24` | 送信元 IP が `10.0.0.0/24` の中 |
 | `ip daddr 8.8.8.8` | 宛先 IP が `8.8.8.8` |
 | `tcp dport 22` | 宛先ポートが 22（SSH） |
@@ -104,6 +109,7 @@ sudo nft add rule ip nat postrouting oifname "ens33" masquerade
 | 動作 | 意味 |
 |---|---|
 | `masquerade` | 送信元を、出ていく NIC の IP に書き換える |
+| `snat to <IP>` | 送信元を、指定した IP に書き換える（WAN 側の IP が固定のとき）。`masquerade` は IP をその都度自動で調べるので、DHCP で IP が変わる WAN 側に向いている |
 | `accept` | 通す |
 | `drop` | 黙って捨てる |
 | `counter` | 当てはまったパケットの数を数える（ほかの動作と一緒に書ける。例：`counter masquerade`） |
