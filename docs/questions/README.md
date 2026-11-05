@@ -42,6 +42,12 @@
 | [専用ルーターはなぜ仕事を 2 つに分けるのか：CPU と ASIC の違い](2026-10-24-router-cpu-vs-asic.md) | 2026-10-24 |
 | [TTL はいつ減り、何のためにあるのか：64 台を超えることはないのか、Time to live exceeded とは何か、ループの確認やそのほかの使い道](2026-10-25-ttl-decrement-and-purpose.md) | 2026-10-25 |
 
+## NAT
+
+| 疑問 | 日付 |
+|---|---|
+| [NAT は送信元を取り外して付け替えるのか：パケットの図で見る、書き換わる欄とそのままの欄](2026-11-05-nat-rewrites-header-field.md) | 2026-11-05 |
+
 ## 設定ファイル・永続化
 
 まとまった説明：[persistent-config.md](../concepts/persistent-config.md)

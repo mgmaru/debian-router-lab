@@ -165,5 +165,6 @@ Client VM がインターネットと通信するには、**両方**が必要で
 - [Routing](routing.md)：デフォルトゲートウェイ
 - [labs/03-routing](../../labs/03-routing/README.md)：転送するパケットは送信元が書き換わらないことの確認
 - [labs/04-nat](../../labs/04-nat/README.md)：nftables でマスカレードを設定する
+- [NAT は送信元を取り外して付け替えるのか](../questions/2026-11-05-nat-rewrites-header-field.md)：パケットの図で見る、書き換わる欄とそのままの欄
 - [プライベート IP とグローバル IP の違い](../questions/2026-10-08-private-ip-vs-global-ip.md)
 - [VMware NAT ゲートウェイとは何か](../questions/2026-10-11-what-is-vmware-nat-gateway.md)
