@@ -48,6 +48,55 @@ systemctl is-enabled networking      # enabled / disabled が出る
 systemctl status nftables            # Loaded の行に enabled / disabled が出る
 ```
 
+Router VM で確かめた結果（2026-11-05）：
+
+```text
+kajih@debian-router:/etc/network$ systemctl is-enabled networking
+enabled
+```
+
+`networking` は最初から `enabled` だったので、labs/01 では `/etc/network/interfaces` に書くだけで、再起動後も IP が残っていました。
+
+### 永続化には「設定の中身」と「読む係を動かすか」の2つが要る
+
+`systemctl enable` は、**設定の中身**を永続化するものではありません。**起動時にその中身を読むサービスを動かすか**を決めるものです。
+
+| | 何を永続化するか | nftables の場合 | どこに残るか |
+|---|---|---|---|
+| ① 設定の中身 | どんなルールにするか | NAT の table を書く | `/etc/nftables.conf` |
+| ② 読む係を動かすか | 起動時に①を読むサービスを動かすか | `systemctl enable nftables` | `/etc/systemd/system/` の下のシンボリックリンク（下で説明） |
+
+```text
+ 起動時：systemd ──②enabled なら──→ nftables.service を動かす ──→ ①/etc/nftables.conf を読む ──→ カーネルにルールを渡す
+```
+
+| ① | ② | 結果 |
+|---|---|---|
+| NAT を書いた | enable していない | ファイルは正しいのに、誰も読まないので効かない（labs/04 で enable する前の状態） |
+| 初期状態のまま | enable した | サービスは動くが、読むファイルに NAT が無いので効かない |
+| NAT を書いた | enable した | **効く**（labs/04 の Experiment 10・11） |
+
+`networking` と `systemd-sysctl` は②が最初から済んでいたので、①だけで永続化できました。
+
+### enable したことも、ファイルとして残っている
+
+enable したこと自体も、再起動後に systemd が覚えていられるように、ファイルとして残ります。
+
+`systemctl enable` は、`/etc/systemd/system/〇〇.target.wants/` の下に**シンボリックリンク**（別のファイルを指す目印のファイル）を作ります。systemd は起動時にこのリンクを見て、どのサービスを動かすかを決めます。`systemctl enable` を実行したときに出る `Created symlink …` という行が、このリンクを作ったという表示です。
+
+| | 中身 | 場所 |
+|---|---|---|
+| ① 設定の中身 | ルールそのもの | `/etc/nftables.conf` |
+| ② enable したという記録 | 「起動時に nftables.service を動かす」という目印 | `/etc/systemd/system/〇〇.target.wants/nftables.service`（`/usr/lib/systemd/system/nftables.service` を指すリンク） |
+
+リンクは、次のコマンドで確かめられます。
+
+```bash
+ls -l /etc/systemd/system/*.wants/ | grep -E 'nftables|networking'
+```
+
+`systemctl disable` を実行すると、このリンクが消えます。①のファイルは消えません。
+
 ---
 
 ## カーネルの設定（`/etc/sysctl.d/`）
