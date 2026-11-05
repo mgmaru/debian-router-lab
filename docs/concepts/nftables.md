@@ -170,6 +170,7 @@ Linux では、プログラムが動く場所が2つに分かれています。
 | 関所の場所はカーネルが決めている | どこに呼び出し口があるかは、カーネルのプログラムに最初から書かれている。自分で増やしたり、場所を変えたりはできない |
 | 何も登録されていなければ素通り | `sudo nft list ruleset` が空の Router VM は、どの関所も素通りしている |
 | chain を作ると登録される | `hook postrouting` を付けて chain を作ると、⑤ の呼び出し口に登録される。それ以降、⑤ を通るパケットはその chain のルールで調べられる |
+| NAT の chain は `nf_nat` を通して登録される | `type nat` の chain は関所に直接登録されない。カーネルの NAT の部品（`nf_nat`）が関所に登録され、そこから自分の chain が呼ばれる。最初の NAT の chain を作ると、`nf_nat` は prerouting・input・output・postrouting の4つの関所すべてに登録される（labs/04 で確認） |
 
 空港にたとえると、関所は「検査場を置ける場所」として、建物を作ったときに最初から決められている場所です。そこに検査場（chain）を開いて初めて、検査が行われます。
 
@@ -222,7 +223,45 @@ Linux では、プログラムが動く場所が2つに分かれています。
 
 **2. 今のカーネルの関所を見る（`sudo nft list hooks`）**
 
-各関所と、そこに今何が登録されているかを表示します。chain を作る前と後で実行すると、自分の chain が関所に登録されたことを確かめられます（表示の形は、実行して確認する）。
+各関所と、そこに今何が登録されているかを表示します。chain を作る前と後で実行すると、自分の chain が関所に登録されたことを確かめられます。
+
+chain を作る前の Router VM（2026-11-05）：
+
+```text
+kajih@debian-router:~$ sudo nft list hooks
+family ip {
+	hook postrouting {
+		-0000000225 apparmor_ip_postroute
+	}
+}
+family ip6 {
+	hook postrouting {
+		-0000000225 apparmor_ip_postroute
+	}
+}
+```
+
+- `-0000000225` は priority（順番）。小さいほど先に呼ばれる
+- `apparmor_ip_postroute` は、AppArmor（Debian に最初から入っているセキュリティの仕組み）のためにカーネルが登録した処理。パケットを書き換えたり捨てたりはしない
+- conntrack は出ていない。今の Linux では、conntrack は必要になるまで関所に登録されないためと考えられる（NAT の chain を作った後に確かめる）
+
+### `list ruleset` と `list hooks` の違い
+
+2つのコマンドは、**同じ関所を、違う立場から見ている**。
+
+| コマンド | 見ているもの | たとえ |
+|---|---|---|
+| `sudo nft list ruleset` | **自分が nftables に入れたもの**の中身（table・chain・rule） | チェックリストのファイルの中身 |
+| `sudo nft list hooks` | **カーネルの関所ごとに、何が登録されているか** | 建物の案内図。どの検査場所に、誰の検査場が、どの順で開いているか |
+
+| | `list ruleset` | `list hooks` |
+|---|---|---|
+| rule の中身（条件・動作） | 出る | 出ない |
+| 自分の chain がどの関所に、何番目に登録されたか | 関所の名前と priority は出る | 出る（ほかの登録との順番もわかる） |
+| nftables 以外が登録したもの（AppArmor、conntrack など） | 出ない | **出る** |
+| 使う場面 | 自分が入れた設定が正しいかを見る（ふだんはこちら） | 関所で実際に何が、どの順で動くかを見る。ほかのツールとぶつかっていないかを調べる |
+
+chain を作る前の Router VM では、`list ruleset` は空なのに、`list hooks` には AppArmor が出た。AppArmor は nftables の外にあるからである。
 
 ---
 
