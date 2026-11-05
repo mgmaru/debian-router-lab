@@ -563,6 +563,7 @@ nftables も Netfilter も、Linux に最初からある仕組みで、このリ
 
 ## 関連
 
+- [nft コマンド](../tools/nft.md)：コマンドの形式（作る・見る・消す・ファイルから読み込む）
 - [NAT](nat.md)：NAT の本質、行きの書き換えと帰りの書き戻し
 - [Routing](routing.md)：デフォルトゲートウェイ
 - [一時的な設定と永続的な設定](persistent-config.md)
