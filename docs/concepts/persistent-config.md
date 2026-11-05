@@ -29,6 +29,25 @@ IP アドレスを永続化した手順は [environment/debian/network.md](../..
 
 どれも、「**起動時にそのファイルを読んで、設定し直してくれるもの**」がいるから永続化できます。
 
+### 「起動時に読むもの」が最初から有効とは限らない
+
+ファイルに書いても、それを読むサービスが**有効（`enabled`）**になっていなければ、起動時に読まれません。Debian の初期状態は、サービスによって違います。
+
+| 起動時に読むもの | Debian の初期状態 | 自分で `systemctl enable` したか |
+|---|---|---|
+| `networking` サービス（`/etc/network/interfaces`） | **有効**（ifupdown と一緒に、最初から有効） | していない（labs/01） |
+| `systemd-sysctl` サービス（`/etc/sysctl.d/`） | **有効**（systemd の一部で、最初から有効） | していない（labs/02） |
+| `nftables` サービス（`/etc/nftables.conf`） | **無効**（`disabled`） | **した**（labs/04：`sudo systemctl enable --now nftables`） |
+
+`nftables` が最初は無効なのは、パッケージを入れただけでファイアウォールの設定が勝手に効き始めないようにするためと考えられます。
+
+サービスが有効かどうかは、次のコマンドで確かめられます。
+
+```bash
+systemctl is-enabled networking      # enabled / disabled が出る
+systemctl status nftables            # Loaded の行に enabled / disabled が出る
+```
+
 ---
 
 ## カーネルの設定（`/etc/sysctl.d/`）
