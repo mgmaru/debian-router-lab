@@ -182,4 +182,19 @@ table ip nat {
   - `sudo nft add rule ip nat postrouting oifname "ens33" masquerade`：ipファミリーのnatテーブルのpostroutingというchain名に、ens33からパケットが出ていく場合（条件）に、masquerade（動作）を設定する。
 - oifname：output interface name　-> パケットが出ていくNICの名前
 - masquerade：送信元IPを出ていくNICのIPに書き換える動作
+9. conntrackコマンド
+- 役割：カーネルの中のconntrackの表を操作する
+- 記録しているもの
+  - 行きの送信元・宛先
+  - 帰りに届くはずの送信元・宛先
+  - プロトコルと番号
+  - 状態：通信が始まったばかりか、やり取りが続いているか
+  - 残り時間：この数秒の間通信がなければ、記録を消す
+10. conntrackは最初の送信元、宛先を記録し、NATが送信元を書き換えて、ローカルネットワークの送信元に届くようにする。
+11. nftコマンドは永続化されない。なので永続化する。
+- 永続化ファイル：`/etc/nftables.conf`
+- 起動時にファイルを読み込むようにする：`sudo systemctl enable --now nftables`
+  - `enable`：起動時に`nftables,service`が動くようにする。
+    - `disabled` -> `enabled`
+  - `--now`：再起動を待たずに、今すぐサービスを起動する。
 ---
