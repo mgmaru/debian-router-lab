@@ -30,7 +30,7 @@ nftables
 
 nftables で設定し、`/etc/nftables.conf` ＋ `systemctl enable nftables` で永続化する。
 
-NAT の仕組みと、NAT が無いときに返事が戻らない理由は [docs/concepts/nat.md](../../docs/concepts/nat.md) に、nftables の table・chain・rule と関所（フック）は [docs/concepts/nftables.md](../../docs/concepts/nftables.md) に、`nft` コマンドの形式は [docs/tools/nft.md](../../docs/tools/nft.md) にまとめた。
+NAT の仕組みと、NAT が無いときに返事が戻らない理由は [docs/concepts/nat.md](../../docs/concepts/nat.md) に、nftables の table・chain・rule と関所（フック）は [docs/concepts/nftables.md](../../docs/concepts/nftables.md) に、`nft` コマンドの形式は [docs/tools/nft.md](../../docs/tools/nft.md) に、conntrack の記録の仕組みは [docs/concepts/conntrack.md](../../docs/concepts/conntrack.md) にまとめた。
 
 ## Topology
 
@@ -258,6 +258,144 @@ tcpdump: listening on ens33, link-type EN10MB (Ethernet), snapshot length 262144
     8.8.8.8 > 192.168.22.129: ICMP echo reply, id 13, seq 3, length 64
 ```
 
+### 7. conntrack の記録を見る（Router VM / Client VM）
+
+Router VM に `conntrack` コマンドを入れ（`sudo apt install conntrack`）、Client VM から `ping 8.8.8.8` を送り続けている間に、Router VM で記録を表示した（2026-11-05）。
+
+```text
+kajih@debian-router:~$ sudo conntrack -L
+tcp      6 431999 ESTABLISHED src=192.168.22.1 dst=192.168.22.129 sport=53618 dport=22 src=192.168.22.129 dst=192.168.22.1 sport=22 dport=53618 [ASSURED] mark=0 use=1
+tcp      6 431999 ESTABLISHED src=10.0.0.1 dst=10.0.0.10 sport=50372 dport=22 src=10.0.0.10 dst=10.0.0.1 sport=22 dport=50372 [ASSURED] mark=0 use=1
+udp      17 6 src=192.168.22.129 dst=192.168.22.254 sport=68 dport=67 src=192.168.22.254 dst=192.168.22.129 sport=67 dport=68 mark=0 use=1
+tcp      6 299 ESTABLISHED src=192.168.22.129 dst=192.168.22.1 sport=22 dport=57752 src=192.168.22.1 dst=192.168.22.129 sport=57752 dport=22 [ASSURED] mark=0 use=1
+icmp     1 29 src=10.0.0.10 dst=8.8.8.8 type=8 code=0 id=14 src=8.8.8.8 dst=192.168.22.129 type=0 code=0 id=14 mark=0 use=1
+tcp      6 431685 ESTABLISHED src=192.168.22.1 dst=192.168.22.129 sport=53624 dport=22 src=192.168.22.129 dst=192.168.22.1 sport=22 dport=53624 [ASSURED] mark=0 use=1
+tcp      6 431737 ESTABLISHED src=192.168.22.1 dst=192.168.22.129 sport=53619 dport=22 src=192.168.22.129 dst=192.168.22.1 sport=22 dport=53619 [ASSURED] mark=0 use=1
+conntrack v1.4.8 (conntrack-tools): 7 flow entries have been shown.
+```
+
+### 8. traceroute で経路を見る（Client VM）
+
+labs/03 でやり残した traceroute を、マスカレードを入れた状態で試した（2026-11-05）。`-I` で、ICMP の echo request を使う。
+
+```text
+kajih@debian-client:~$ traceroute -I 8.8.8.8
+traceroute to 8.8.8.8 (8.8.8.8), 30 hops max, 60 byte packets
+ 1  10.0.0.1 (10.0.0.1)  0.818 ms  0.780 ms  0.763 ms
+ 2  192.168.22.2 (192.168.22.2)  1.091 ms * *
+ 3  * 192.168.11.1 (192.168.11.1)  2.406 ms  2.389 ms
+ 4  * * *
+ 5  * * *
+ 6  * * *
+ 7  * * *
+ 8  8.8.8.8 (8.8.8.8)  11.619 ms  16.055 ms  16.036 ms
+```
+
+### 9. 永続化する：初期状態の `/etc/nftables.conf` を確認する（Router VM）
+
+```text
+kajih@debian-router:/etc$ cat nftables.conf
+#!/usr/sbin/nft -f
+
+flush ruleset
+
+table inet filter {
+	chain input {
+		type filter hook input priority filter;
+	}
+	chain forward {
+		type filter hook forward priority filter;
+	}
+	chain output {
+		type filter hook output priority filter;
+	}
+}
+```
+
+### 10. 永続化する：`/etc/nftables.conf` に NAT を書き、サービスを有効にする（Router VM）
+
+初期状態の `table inet filter` はそのまま残し、いちばん下に NAT の table を足した（2026-11-05）。足した部分は、`sudo nft list ruleset` の出力と同じ形である。元のファイルのコピー（`.orig`）は取らなかった（初期状態の中身は Experiment 9 に記録してある）。
+
+```text
+kajih@debian-router:/etc$ cat nftables.conf
+#!/usr/sbin/nft -f
+
+flush ruleset
+
+table inet filter {
+	chain input {
+		type filter hook input priority filter;
+	}
+	chain forward {
+		type filter hook forward priority filter;
+	}
+	chain output {
+		type filter hook output priority filter;
+	}
+}
+
+table ip nat {
+	chain postrouting {
+		type nat hook postrouting priority srcnat; policy accept;
+		oifname "ens33" masquerade
+	}
+}
+```
+
+書き方だけを確かめてから、サービスを有効にした：
+
+```text
+kajih@debian-router:/etc$ sudo nft -c -f /etc/nftables.conf
+kajih@debian-router:/etc$ sudo systemctl enable --now nftables
+kajih@debian-router:/etc$ systemctl status nftables
+● nftables.service - nftables
+     Loaded: loaded (/usr/lib/systemd/system/nftables.service; enabled; preset: enabled)
+     Active: active (exited) since Thu 2026-11-05 14:45:31 JST; 12s ago
+ Invocation: 15b97e67fdef4548b063ec0fa33a5c7f
+       Docs: man:nft(8)
+             http://wiki.nftables.org
+    Process: 27228 ExecStart=/usr/sbin/nft -f /etc/nftables.conf (code=exited, status=0/SUCCESS)
+   Main PID: 27228 (code=exited, status=0/SUCCESS)
+   Mem peak: 2M
+        CPU: 20ms
+kajih@debian-router:/etc$ sudo nft list ruleset
+table inet filter {
+	chain input {
+		type filter hook input priority filter; policy accept;
+	}
+
+	chain forward {
+		type filter hook forward priority filter; policy accept;
+	}
+
+	chain output {
+		type filter hook output priority filter; policy accept;
+	}
+}
+table ip nat {
+	chain postrouting {
+		type nat hook postrouting priority srcnat; policy accept;
+		oifname "ens33" masquerade
+	}
+}
+```
+
+### 11. 再起動しても NAT が効くか確かめる（Router VM / Client VM）
+
+Router VM を `sudo reboot` で再起動した後、Client VM から `ping -c 3 8.8.8.8` を打った（2026-11-05）。
+
+```text
+kajih@debian-client:~$ ping -c 3 8.8.8.8
+PING 8.8.8.8 (8.8.8.8) 56(84) bytes of data.
+64 bytes from 8.8.8.8: icmp_seq=1 ttl=127 time=11.9 ms
+64 bytes from 8.8.8.8: icmp_seq=2 ttl=127 time=12.4 ms
+64 bytes from 8.8.8.8: icmp_seq=3 ttl=127 time=14.5 ms
+
+--- 8.8.8.8 ping statistics ---
+3 packets transmitted, 3 received, 0% packet loss, time 2004ms
+rtt min/avg/max/mdev = 11.851/12.909/14.466/1.124 ms
+```
+
 ## Result
 
 ### 1. NAT が無い状態で、WAN へ ping を送る（Router VM / Client VM）
@@ -371,3 +509,87 @@ Client VM のパケットにも `192.168.22.129` を使わせるのが、これ�
 #### 予想していなかったこと：帰りの TTL が 128
 
 ens33 に届いた返事の TTL が 128 だった。8.8.8.8 から何台ものルーターを通ってきたなら、128 より小さくなっているはずである。128 は Windows が最初に付ける値なので、**VMware NAT（Windows 上で動いている）が返事のパケットを作り直して Router VM に渡している**可能性が高い。Router VM の中からは確かめきれないので、「そう考えられる」という段階である。
+
+### 7. conntrack の記録を見る（Router VM / Client VM）
+
+ping の行は、予想どおり NAT されていた。
+
+| 部分 | 値 | 意味 |
+|---|---|---|
+| 残り秒数 | 29 | ping が続いている間は、届くたびに 30 秒に戻る |
+| 前半（行き） | `src=10.0.0.10 dst=8.8.8.8` | Client VM が送ったときのまま |
+| 後半（帰り） | `src=8.8.8.8 dst=192.168.22.129` | 前半をそのまま逆にした形（`dst=10.0.0.10`）と**違う** → NAT されている |
+| `id=14` | | 前半と後半で同じ。id はずらしていない |
+
+**7行のうち、後半が前半の逆と違うのは ping の行だけ**。NAT されているのは、Client VM からインターネットへの ping だけである。
+
+そのほかの6行は、どれも NAT されていない。
+
+| 行 | 前半（行き） | 何の通信か |
+|---|---|---|
+| 1, 6, 7 | `192.168.22.1:5361x` → `192.168.22.129:22` | Windows から Router VM への SSH。開いているターミナルの数だけある |
+| 2 | `10.0.0.1:50372` → `10.0.0.10:22` | Router VM から Client VM への SSH（`ssh debian-client` の多段 SSH で、Router VM が Client VM へつないでいる部分） |
+| 3 | `192.168.22.129:68` → `192.168.22.254:67`（UDP） | DHCP のリース延長。DHCP サーバーへ直接問い合わせている（[docs/concepts/dhcp.md](../../docs/concepts/dhcp.md) の「2 回目以降の問い合わせ」） |
+| 4 | `192.168.22.129:22` → `192.168.22.1:57752` | Windows からの SSH だが、前半と後半が逆向き（下の「予想していなかったこと」） |
+
+- SSH の相手 `192.168.22.1` は、VMware が Windows に作った仮想 NIC（VMnet8）の IP。`ProxyJump win` で経由している Windows が、このアドレスでつないできている
+- 2行目と3行目は、転送ではなく **Router VM 自身の通信**。conntrack は、転送する通信だけでなく、Router VM 自身の通信や Router VM 宛ての通信も記録する
+- TCP の `ESTABLISHED` の記録は、5日間（432,000 秒）通信が無いと消える。ICMP の30秒よりずっと長い。`[ASSURED]` は、両方向にやりとりがあった確かな通信という印
+
+#### 予想していなかったこと：4行目だけ向きが逆
+
+Windows から Router VM への SSH なのに、4行目だけ前半が「`192.168.22.129:22` → `192.168.22.1:57752`」と、Router VM 側から始まった形になっている。
+
+おそらく、**conntrack が動き始める前から開いていた SSH** である。conntrack は `masquerade` の rule を入れた時点で動き始めた（Experiment 5）。それより前から開いていた SSH は、conntrack から見ると途中から見えた通信で、最初に見えたパケット（Router VM から Windows への返事）を「行き」として記録したと考えられる。1, 6, 7 行目が正しい向きなのは、rule を入れた後に tcpdump 用のターミナルなどを新しく開いたからと考えられる。残り秒数が 299 と短い理由は、まだ確かめていない。
+
+### 8. traceroute で経路を見る（Client VM）
+
+labs/03 で予想した「NAT を設定すれば、2台目から先も見える」が確かめられた。
+
+| 何台目 | 返事をした機器 | 何か |
+|---|---|---|
+| 1 | `10.0.0.1` | Router VM（labs/03 でも見えていた） |
+| 2 | `192.168.22.2` | VMware NAT。NAT が無いときは見えなかった |
+| 3 | `192.168.11.1` | 家のルーター（家の LAN 側の IP と考えられる） |
+| 4〜7 | `* * *` | 返事が無い |
+| 8 | `8.8.8.8` | 目的地に届いた |
+
+```text
+ Client VM ─→ ①Router VM ─→ ②VMware NAT ─→ ③家のルーター ─→ ④〜⑦プロバイダなど ─→ ⑧8.8.8.8
+              10.0.0.1      192.168.22.2    192.168.11.1      （返事なし）
+```
+
+- **2台目から先が見えるようになった理由**：NAT が無いときは、2台目に届く時点で送信元が `10.0.0.10` だったので、Time to live exceeded は戻ってこなかった。今は送信元が `192.168.22.129` なので、エラーは Router VM まで戻り、conntrack の記録で `10.0.0.10` へ書き戻される
+- Time to live exceeded は、echo reply とは違う種類の ICMP（エラー）。それでも書き戻せるのは、conntrack が「記録済みの通信に関係するエラー」（related）も見分けられるから。ICMP のエラーの中には、原因になった元のパケットのヘッダーが入っていて、conntrack はそれを読んでどの通信のエラーかを判断する
+- **2台目・3台目の一部の `*`**：同じ機器でも、3回のうち返事が来ない回があった。ルーターがエラーを返す回数を制限しているためと考えられる
+- **4〜7台目の `* * *`**：プロバイダなどのルーターが、Time to live exceeded を返さない設定になっていると考えられる。8台目で 8.8.8.8 に届いているので、経路が途切れているわけではない
+- **Windows が1台として出てこない**：VMware NAT は Windows の上で動いているプログラムなので、Windows と VMware NAT がまとめて1台（`192.168.22.2`）に見えていると考えられる。Experiment 6 で見た「帰りの TTL が 128」（VMware NAT が返事を作り直している）とも合っている
+
+### 9. 永続化する：初期状態の `/etc/nftables.conf` を確認する（Router VM）
+
+| 行 | 意味 |
+|---|---|
+| `#!/usr/sbin/nft -f` | このファイルを直接実行したときに、`nft -f` で読み込むという印 |
+| `flush ruleset` | 今カーネルに入っているルールを全部消してから、この後の内容を読み込む |
+| `table inet filter { … }` | ファイアウォール用の table（IPv4 と IPv6 の両方）。3つの関所に `filter` の chain があるが、**rule が1つも無い** |
+
+- chain に `policy` が書かれていないので、`policy accept`（そのまま通す）になる。この table は**何もしない**、ファイアウォールのひな形（labs/05 で rule を書き足す）
+- **NAT の table は入っていない**。このまま `nftables.service` を有効にしても NAT は効かず、`flush ruleset` で、コマンドで入れた NAT の設定が消える
+
+### 10. 永続化する：`/etc/nftables.conf` に NAT を書き、サービスを有効にする（Router VM）
+
+- `sudo nft -c -f` は何も表示しなかった。書き方は正しい（`-c` は確かめるだけで、カーネルには渡さない）
+- `systemctl enable --now` で、`disabled` → `enabled`、`inactive (dead)` → `active (exited)` になった。`exited` は、ルールを渡して正常に仕事を終えたという意味
+- `ExecStart=/usr/sbin/nft -f /etc/nftables.conf` が、このサービスが実際にやっていること。**手で打てる `nft -f` で、ファイルを1回読み込むだけ**のサービスである
+- `nft list ruleset` に、`table inet filter` と `table ip nat` の2つが出た。ファイルで `policy` を書かなかった chain には `policy accept;` と表示された。書かないと `accept` になる
+
+### 11. 再起動しても NAT が効くか確かめる（Router VM / Client VM）
+
+**再起動した後も、Client VM から 8.8.8.8 へ ping が通った。** NAT の永続化ができた。
+
+ping が通るには、次の2つが両方効いている必要がある。
+
+| 仕組み | 永続化した場所 | 再起動後 |
+|---|---|---|
+| IP フォワード | `/etc/sysctl.d/`（labs/02） | 効いている（転送されないと、ping は外へ出ない） |
+| NAT | `/etc/nftables.conf` + `nftables.service`（Experiment 10） | 効いている（書き換えられないと、返事は戻らない） |

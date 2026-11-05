@@ -51,9 +51,9 @@
 - [x] IP Forwardingを有効化
 - [x] Routing Tableを学習
 - [x] Client → Router → WAN のPacket経路を確認
-- [ ] NATを学習
-- [ ] nftablesでNATを設定
-- [ ] ClientからInternetへの疎通確認
+- [x] NATを学習
+- [x] nftablesでNATを設定
+- [x] ClientからInternetへの疎通確認
 - [ ] Firewallを学習
 - [ ] nftablesでFirewall Ruleを設定
 
