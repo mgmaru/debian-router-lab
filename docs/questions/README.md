@@ -49,6 +49,14 @@
 | [NAT は送信元を取り外して付け替えるのか：パケットの図で見る、書き換わる欄とそのままの欄、IP ヘッダーは書き換えで Ethernet ヘッダーは付け替えな理由、MAC アドレスとは何か](2026-11-05-nat-rewrites-header-field.md) | 2026-11-05 |
 | [nftables はルーティングテーブルのようなものか：関所（フック）と table・chain・rule、「NAT テーブル」という呼び方、帰りの書き戻しは誰がやるのか](2026-11-05-nftables-vs-routing-table.md) | 2026-11-05 |
 
+## ファイアウォール
+
+まとまった説明：[netfilter-hooks.md](../concepts/netfilter-hooks.md)、[conntrack.md](../concepts/conntrack.md)
+
+| 疑問 | 日付 |
+|---|---|
+| [ルーターは「返事」と「外からの新しい接続」をどう区別するのか：forward は関所か、LAN → WAN と WAN → LAN の見分け方、conntrack の判定と ct state](2026-11-06-reply-vs-new-connection.md) | 2026-11-06 |
+
 ## 設定ファイル・永続化
 
 まとまった説明：[persistent-config.md](../concepts/persistent-config.md)
