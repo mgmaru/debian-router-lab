@@ -158,10 +158,28 @@ debian-router-labを学びながら思ったことを雑多に記載する。
 4. nftablesの設定項目
 - nftablesで設定する項目は3つ
   1. **table**：chainをまとめる入れ物。
-  2. **chain**：rulrを並べた一覧で、どの関所におくかを決める。
+  2. **chain**：ruleを並べた一覧で、どの関所におくかを決める。
     - この「関所」はカーネルが持っている。
   3. **rule**：「条件」と「動作」を記述する。
 5. `nft list hooks`と`nft list ruleset`の違い
 - `nft list hooks`：関所の登録情報を見る。chainが出る。
 - `nft list ruleset`：table、chain、ruleを入れ子で出る。
+6. tableを作成する。
+- `sudo nft add table <ファミリー> <table名>`
+  - `sudo nft add table ip nat`：ipファミリーにnatという名前のテーブルを作成する。
+```bash
+kajih@debian-router:~$ sudo nft list ruleset
+table ip nat {
+}
+```
+- 注意：ファミリーの中でtable名は被ってはいけない。
+  - ファミリーが違えば、同じtable名を設定できる
+7. chainを作成する。
+- `sudo nft add chain <ファミリー> <table名> <chain名> { type <種類> hook <関所> priority <順番>; policy <動作>; }'`
+  - `sudo nft add chain ip nat postrouting '{ type nat hook postrouting priority srcnat; policy accept; }'`：ipファミリーのnatテーブルに「postrouting」という名前のchainを設定する。
+8. ruleをchainに設定する。
+- `sudo nft add rule <ファミリー> <table名> <chain名> <条件> <動作>`
+  - `sudo nft add rule ip nat postrouting oifname "ens33" masquerade`：ipファミリーのnatテーブルのpostroutingというchain名に、ens33からパケットが出ていく場合（条件）に、masquerade（動作）を設定する。
+- oifname：output interface name　-> パケットが出ていくNICの名前
+- masquerade：送信元IPを出ていくNICのIPに書き換える動作
 ---
