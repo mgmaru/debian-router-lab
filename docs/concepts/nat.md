@@ -117,6 +117,15 @@ kajih@debian-router:~$ sudo tcpdump -n -i ens33 icmp
 3. **返事が戻ってくる**：外側の機器は `192.168.22.129` を知っているので、返事は Router VM まで戻ってくる
 4. **書き戻す（帰り）**：Router VM は記録を見て「これは `10.0.0.10` の通信の返事だ」と判断し、宛先を `10.0.0.10` に書き戻す。ルーティングテーブルの `10.0.0.0/24 dev ens37` に従い、ens37 から Client VM へ転送する
 
+### 書き換えるタイミング
+
+| | タイミング | 理由 |
+|---|---|---|
+| 行き（送信元の書き換え） | ルーティング判断の**後**（nftables の postrouting） | 出ていく NIC が決まらないと、どの IP に書き換えるかわからない |
+| 帰り（宛先の書き戻し） | ルーティング判断の**前**（nftables の prerouting の場所） | 先に宛先を `10.0.0.10` に戻さないと、Router VM 自身宛てと判断されてしまう |
+
+自分で書く NAT のルールは、行きの1つだけ。NAT のルールが見られるのは通信の最初のパケットだけで、帰りの書き戻しと2つ目以降のパケットの書き換えは、conntrack の記録を使って自動で行われる。詳しくは [nftables はルーティングテーブルのようなものか](../questions/2026-11-05-nftables-vs-routing-table.md) を参照。
+
 ### NAT で変わるもの・変わらないもの
 
 | | NAT なし | NAT あり |
@@ -166,5 +175,6 @@ Client VM がインターネットと通信するには、**両方**が必要で
 - [labs/03-routing](../../labs/03-routing/README.md)：転送するパケットは送信元が書き換わらないことの確認
 - [labs/04-nat](../../labs/04-nat/README.md)：nftables でマスカレードを設定する
 - [NAT は送信元を取り外して付け替えるのか](../questions/2026-11-05-nat-rewrites-header-field.md)：パケットの図で見る、書き換わる欄とそのままの欄、IP ヘッダーは書き換えで Ethernet ヘッダーは付け替えな理由
+- [nftables はルーティングテーブルのようなものか](../questions/2026-11-05-nftables-vs-routing-table.md)：関所（フック）と table・chain・rule、帰りの書き戻し
 - [プライベート IP とグローバル IP の違い](../questions/2026-10-08-private-ip-vs-global-ip.md)
 - [VMware NAT ゲートウェイとは何か](../questions/2026-10-11-what-is-vmware-nat-gateway.md)
