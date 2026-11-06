@@ -122,15 +122,31 @@ Router VM のプログラムが作ったパケットは、① prerouting も ③
 
 ## どの関所に何を置くか
 
-関所ごとに、向いている仕事が決まっています。
+### 関所ごとに、通るパケットとわかっていることが違う
 
-| 関所 | 置くもの | このラボでの例 | 使う lab |
+関所そのものに役割が決められているわけではありません。違うのは**場所**です。場所が違うと「どのパケットが通るか」と「その時点で何がわかっているか」が変わり、その結果、関所ごとに向いている仕事が分かれます。
+
+| 関所 | 通るパケット | その時点でわかっていること | だから向いている仕事 |
 |---|---|---|---|
-| ① prerouting | 宛先の書き換え（DNAT、ポート転送） | — | — |
-| ② input | **Router VM を守る**ファイアウォール | 「SSH は許可、ほかは拒否」 | labs/05 |
-| ③ forward | **LAN 側の機器を守る**ファイアウォール | 「LAN → WAN は許可、WAN → LAN の新しい接続は拒否」 | labs/05 |
-| ④ output | Router VM が出す通信の制限（あまり使わない） | — | — |
-| ⑤ postrouting | 送信元の書き換え（マスカレード） | `oifname "ens33" masquerade` | labs/04（済み） |
+| ① prerouting | 届いたパケットすべて | 入ってきた NIC。**出口はまだ決まっていない** | 宛先の書き換え（DNAT）。行き先を決める前に宛先を変えられる |
+| ② input | Router VM 宛てだけ | 自分宛てだと決まった | Router VM を守るファイアウォール |
+| ③ forward | 通り抜けるものだけ | 入口と出口の両方 | LAN 側の機器を守るファイアウォール |
+| ④ output | Router VM が作ったものだけ | 出口 | Router VM が出す通信の制限（あまり使わない） |
+| ⑤ postrouting | 出ていくパケットすべて | **出口が決まった** | 送信元の書き換え（マスカレード）。出口の NIC の IP がわかるから |
+
+「向いている仕事」は慣習で、カーネルが強制しているわけではありません。たとえば ① prerouting に filter の chain を置き、届いた直後に捨てることもできます。
+
+ただし、カーネルが制限しているところが1つだけあります。**NAT の chain（`type nat`）は ③ forward には置けません**。置けるのは prerouting・input・output・postrouting です。filter の chain は5つのどこにでも置けます。
+
+### このラボで置くもの
+
+| 関所 | このラボでの例 | 使う lab |
+|---|---|---|
+| ① prerouting | —（NAT の書き戻しは conntrack が自動で行うので、rule は書かない） | — |
+| ② input | **Router VM を守る**ファイアウォール：「SSH は許可、ほかは拒否」 | labs/05 |
+| ③ forward | **LAN 側の機器を守る**ファイアウォール：「LAN → WAN は許可、WAN → LAN の新しい接続は拒否」 | labs/05 |
+| ④ output | — | — |
+| ⑤ postrouting | 送信元の書き換え：`oifname "ens33" masquerade` | labs/04（済み） |
 
 labs/04 では ⑤ postrouting に NAT の chain を置きました。labs/05 では ② input と ③ forward にファイアウォールの chain を置きます。
 
