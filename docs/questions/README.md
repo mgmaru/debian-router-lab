@@ -57,6 +57,7 @@
 |---|---|
 | [ルーターは「返事」と「外からの新しい接続」をどう区別するのか：forward は関所か、LAN → WAN と WAN → LAN の見分け方、conntrack の判定と ct state](2026-11-06-reply-vs-new-connection.md) | 2026-11-06 |
 | [rule の順番で結果はどう変わるのか：先に当たった rule で決まることと、ファイアウォール管理ソフトウェアで順番を扱うときの考え方](2026-11-06-rule-order-changes-result.md) | 2026-11-06 |
+| [policy は必ず使われるのか：書く場所と使われるタイミング、rule で決まったパケットとの関係、policy は強いルールか](2026-11-06-when-policy-is-used.md) | 2026-11-06 |
 
 ## 設定ファイル・永続化
 
