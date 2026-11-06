@@ -34,11 +34,57 @@ rule の評価のしかたとデフォルト拒否の考え方は [docs/concepts
 |---|---|---|
 | 0 | 準備：戻り道（VMware Console）と、今の状態を確かめる | なし |
 | 1 | rule を入れる前に、WAN 側から Client VM へ新しい接続が届いてしまうことを確かめる | なし |
-| 2 | forward をデフォルト拒否にする | なし（forward は Router VM 宛ての SSH を通らない） |
+| 2 | forward をデフォルト拒否にする | なし（管理用の SSH は、Router VM 宛ても Client VM 宛ても forward を通らない。下の「管理用の SSH が通る関所」） |
 | 3 | input をデフォルト拒否にする | **あり**（順番を間違えると SSH が切れる） |
 | 4 | `/etc/nftables.conf` に書いて永続化し、再起動後も効くか確かめる | あり |
 
 実験 2 以降の手順は、実験 0・1 の結果を見てから書き足す。実験 3 の締め出し対策（一定時間後に rule を自動で消す仕掛けなど）も、そのときに決める。
+
+### 実験 0・1 の目的
+
+**実験 0** は、後の実験で困らないようにするためと、比べるための出発点を記録しておくための準備である。ファイアウォールは、設定を間違えると自分の接続を切ってしまう数少ない設定なので、「戻り道」と「戻す先」を先に用意する。
+
+| 手順 | 何のためか | 使う場面 |
+|---|---|---|
+| 0-1 Console にログイン | SSH が切れたときの**戻り道**を、切れる前に確かめておく | 実験 3・4 |
+| 0-2 `$SSH_CONNECTION`（Router VM） | 管理用の SSH が**どの IP から来ているか**を知る。input をデフォルト拒否にするとき、この IP からの SSH を許可しないと締め出される | 実験 3 |
+| 0-2b `$SSH_CONNECTION`（Client VM） | Client VM への SSH が **forward を通らない**ことを確かめる（下の「管理用の SSH が通る関所」） | 実験 2 |
+| 0-3 今の状態 | **出発点を記録する**。forward に rule が無く `ip_forward` が 1 であることを確かめ、実験 1 の結果の理由をはっきりさせる | 実験 1・2 |
+| 0-4 バックアップ | うまくいかなくなったときに、labs/04 の状態に**一発で戻す** | 実験 2 以降 |
+
+**実験 1** は、制限をかける**前**の状態を見ておくための実験である。実験 2 で forward をデフォルト拒否にしたあと、同じ確かめ方をもう一度行い、「rule を入れる前は届いた → 入れた後は止まった」を比べる。止めるのは WAN → LAN の**新しい接続（`new`）だけ**で、Client VM が始めた通信の返事（`established`）と LAN → WAN の新しい接続は通す。
+
+| 通信 | 実験 1（rule なし） | 実験 2（forward をデフォルト拒否） |
+|---|---|---|
+| Windows → Client VM の ping・SSH（WAN → LAN の `new`） | 届く | **止まる** |
+| Client VM → 8.8.8.8（LAN → WAN の `new`） | 通る | 通る（rule で許可する） |
+| 8.8.8.8 → Client VM の返事（WAN → LAN の `established`） | 通る | 通る（rule で許可する） |
+
+### 管理用の SSH が通る関所
+
+Mac から Client VM への SSH（`ssh debian-client`）は、`ProxyJump windows-home,debian-router` で入っている（[ssh_config.example](../../environment/remote-access/ssh_config.example)）。この設定では、SSH の接続が**区間ごとに別々の TCP 接続**になる。
+
+```text
+ Mac ──(1)──→ Windows ──(2)──→ Router VM ──(3)──→ Client VM
+            Tailscale       192.168.22.1 →        10.0.0.1 →
+                            192.168.22.129:22     10.0.0.10:22
+```
+
+| 区間 | 接続を始めるもの | 送信元 → 宛先 | Router VM の中で通る関所 |
+|---|---|---|---|
+| (1) Mac → Windows | Mac | Tailscale | Router VM は通らない |
+| (2) Windows → Router VM | Windows | 192.168.22.1 → 192.168.22.129:22 | **② input**（Router VM 宛て） |
+| (3) Router VM → Client VM | **Router VM の sshd** | 10.0.0.1 → 10.0.0.10:22 | **④ output**（行き）、**② input**（Client VM からの返事） |
+
+- (3) の接続を始めるのは Windows ではなく **Router VM 自身**。Router VM の sshd が、Mac の代わりに Client VM へつなぎに行く。そのため ③ forward を通らず、実験 2 で forward をデフォルト拒否にしても `ssh debian-client` は切れない
+- 実験 1 の Windows からの `ssh kajih@10.0.0.10` は、Windows が Client VM へ**直接**つなぎに行く通信なので ③ forward を通る。実験 2 で止めたいのはこちら
+
+input と forward で許可するものは「SSH のみ」ではない。
+
+| chain | 許可が要るもの | 「SSH のみ許可」にすると |
+|---|---|---|
+| ② input | (2) の SSH（192.168.22.1 からの TCP/22）、`ct state established,related`（(3) の Client VM からの返事を含む）、loopback・ICMP など（実験 3 で試す） | (3) の返事が止まり、**Client VM への SSH が切れる**。Router VM の `apt update` も返事が来なくなる |
+| ③ forward | `ct state established,related`、LAN → WAN の新しい接続（`iifname "ens37" oifname "ens33"`） | **Client VM がインターネットを使えなくなる**。forward に SSH の許可は要らない |
 
 ## Topology
 
@@ -91,6 +137,27 @@ echo $SSH_CONNECTION
 | 宛先ポート | 22 | SSH |
 
 送信元 IP が予想と違ったら、その値を記録する。実験 3 の rule で使う。
+
+#### 0-2b. Client VM への SSH が、どこから来ているかを確かめる（Client VM）
+
+Mac から `ssh debian-client` で Client VM に入った状態で、次を打つ。
+
+```bash
+echo $SSH_CONNECTION
+```
+
+予想：
+
+```text
+10.0.0.1 <ポート番号> 10.0.0.10 22
+```
+
+| 欄 | 予想 | 意味 |
+|---|---|---|
+| 送信元 IP | **10.0.0.1**（192.168.22.1 ではない） | Router VM の LAN 側の IP。Client VM への接続を始めているのは Router VM 自身 |
+| 宛先 IP | 10.0.0.10 | Client VM |
+
+送信元が `10.0.0.1` なら、この SSH は Router VM から出るパケット（④ output）で、③ forward を通らない。実験 2 で forward をデフォルト拒否にしても、この SSH は切れない（Notes の「管理用の SSH が通る関所」）。
 
 #### 0-3. 今の nftables・転送の状態を確かめる（Router VM）
 
@@ -226,6 +293,8 @@ ss -tn state established '( sport = :22 )'
 ```
 
 予想：`Peer Address:Port` の欄に `192.168.22.1:<ポート番号>` が出る。Client VM は、**WAN 側の機器と直接つながっている**ことになる。
+
+`ssh debian-client`（ProxyJump 経由）でも入っている場合は、`10.0.0.1:<ポート番号>` の行も並ぶ。2つの行の違いが、0-2b で見た「Router VM が始めた接続」と「Windows が直接始めた接続」の違いである。
 
 #### 実験 1 で確かめたいこと
 
