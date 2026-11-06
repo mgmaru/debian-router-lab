@@ -60,6 +60,18 @@ rule の評価のしかたとデフォルト拒否の考え方は [docs/concepts
 | Client VM → 8.8.8.8（LAN → WAN の `new`） | 通る | 通る（rule で許可する） |
 | 8.8.8.8 → Client VM の返事（WAN → LAN の `established`） | 通る | 通る（rule で許可する） |
 
+### 実行する場所と、外出先（Mac だけ）でできること
+
+各手順に「実行する場所」を書いた。Windows の GUI が要るのは **0-1 だけ**で、ほかは Mac のターミナルから SSH で行える。Windows のコマンド（1-1〜1-3、1-5）も、`ssh windows-home` で入れば Mac から打てる。
+
+| 実験 | Mac だけでできるか | 理由 |
+|---|---|---|
+| 0-1 | **できない** | VMware の Console 画面は、Windows の GUI でしか操作できない |
+| 0-2〜0-4 | できる | Router VM・Client VM に SSH で入って打つ |
+| 1 | できる | Windows には `ssh windows-home` で入って打つ。rule を入れないので、締め出される危険はない |
+| 2 | できる | forward だけを変える。管理用の SSH は forward を通らないので切れない。ただし間違えたときの戻り道（0-1）が無いので、慎重に行う |
+| 3・4 | **行わない** | 締め出される危険がある。SSH が切れると、外出先からは Console で戻せない。Windows の画面を操作できるときに行う |
+
 ### 管理用の SSH が通る関所
 
 Mac から Client VM への SSH（`ssh debian-client`）は、`ProxyJump windows-home,debian-router` で入っている（[ssh_config.example](../../environment/remote-access/ssh_config.example)）。この設定では、SSH の接続が**区間ごとに別々の TCP 接続**になる。
@@ -107,6 +119,8 @@ input と forward で許可するものは「SSH のみ」ではない。
 
 #### 0-1. VMware Console から Router VM にログインできることを確かめる（Windows）
 
+**実行する場所**：Windows の VMware Workstation（GUI の Console 画面）。Mac からの SSH ではできない。外出先からは行えない
+
 1. Windows の VMware Workstation で Router VM のタブを開く
 2. Console 画面で、ユーザー名とパスワードでログインする
 3. `hostname` を打ち、`debian-router` と出ることを確かめる
@@ -115,6 +129,8 @@ input と forward で許可するものは「SSH のみ」ではない。
 予想：SSH を使わずに Router VM のシェルに入れる。実験 3 以降で SSH が切れたときは、ここから rule を消して戻す。
 
 #### 0-2. 管理用の SSH が、どこから来ているかを確かめる（Router VM）
+
+**実行する場所**：Mac のターミナルで `ssh debian-router`。Console から打つと `$SSH_CONNECTION` は空になるので、必ず SSH で入る
 
 Mac から `ssh debian-router` で入った状態で、次を打つ。
 
@@ -140,6 +156,8 @@ echo $SSH_CONNECTION
 
 #### 0-2b. Client VM への SSH が、どこから来ているかを確かめる（Client VM）
 
+**実行する場所**：Mac のターミナルで `ssh debian-client`。0-2 と同じく、必ず SSH で入る
+
 Mac から `ssh debian-client` で Client VM に入った状態で、次を打つ。
 
 ```bash
@@ -161,6 +179,8 @@ echo $SSH_CONNECTION
 
 #### 0-3. 今の nftables・転送の状態を確かめる（Router VM）
 
+**実行する場所**：Mac のターミナルで `ssh debian-router`（Console でも可）
+
 ```bash
 sudo nft list ruleset
 systemctl is-enabled nftables
@@ -177,6 +197,8 @@ sysctl net.ipv4.ip_forward
 
 #### 0-4. 今の設定ファイルをバックアップする（Router VM）
 
+**実行する場所**：Mac のターミナルで `ssh debian-router`（Console でも可）
+
 ```bash
 sudo cp /etc/nftables.conf /etc/nftables.conf.labs04
 ls -l /etc/nftables.conf*
@@ -192,6 +214,8 @@ ls -l /etc/nftables.conf*
 
 #### 1-1. Windows の VMnet8 側の IP を確かめる（Windows）
 
+**実行する場所**：Mac のターミナルで `ssh windows-home`（Windows の前にいるときは、Windows のコマンドプロンプトか PowerShell でも可）
+
 コマンドプロンプトか PowerShell で次を打つ。
 
 ```powershell
@@ -201,6 +225,8 @@ ipconfig
 予想：`イーサネット アダプター VMware Network Adapter VMnet8` の `IPv4 アドレス` が `192.168.22.1`。
 
 #### 1-2. ルートを足す前に、Windows から Client VM へ ping を送る（Windows）
+
+**実行する場所**：Mac のターミナルで `ssh windows-home`（Windows の前でも可）
 
 ```powershell
 ping 10.0.0.10
@@ -212,7 +238,14 @@ ping 10.0.0.10
 
 #### 1-3. Windows に「10.0.0.0/24 は Router VM 経由」というルートを足す（Windows・管理者）
 
-**管理者として**開いたコマンドプロンプトか PowerShell で次を打つ。
+**実行する場所**：Mac のターミナルで `ssh windows-home`（Windows の前でも可）。管理者権限が必要
+
+**管理者として**次を打つ。
+
+- Mac から `ssh windows-home` で入っている場合：Windows の管理者アカウントで SSH ログインしていれば、そのシェルは最初から管理者として動いているので、そのまま打てる
+- Windows の前にいる場合：「管理者として実行」で開いたコマンドプロンプトか PowerShell で打つ
+
+`要求された操作には管理者特権が必要です。` と出たら、管理者として動いていない。
 
 ```powershell
 route add 10.0.0.0 mask 255.255.255.0 192.168.22.129
@@ -225,6 +258,8 @@ route print 10.0.0.0
 - 実験 2 でも同じ確かめ方をするので、labs/05 が終わるまで消さない
 
 #### 1-4. Router VM で tcpdump を動かす（Router VM、ターミナル2つ）
+
+**実行する場所**：Mac のターミナルを2つ開き、それぞれ `ssh debian-router`
 
 ターミナル1（WAN 側）：
 
@@ -239,6 +274,8 @@ sudo tcpdump -n -i ens37 host 192.168.22.1
 ```
 
 #### 1-5. Windows から Client VM へ ping と SSH を送る（Windows）
+
+**実行する場所**：Mac のターミナルで `ssh windows-home`（Windows の前でも可）。1-4 の2つとは別のターミナルを使う
 
 ```powershell
 ping 10.0.0.10
@@ -265,6 +302,8 @@ tcpdump の予想：
 
 #### 1-6. conntrack の記録を見る（Router VM）
 
+**実行する場所**：Mac のターミナルで `ssh debian-router`（1-4 とは別のターミナル）
+
 ping を打っている間に、次を打つ。
 
 ```bash
@@ -285,6 +324,8 @@ icmp     1 29 src=192.168.22.1 dst=10.0.0.10 type=8 code=0 id=... src=10.0.0.10 
 labs/04 で見た行（Client VM が始めた通信）は、前半の送信元が `10.0.0.10` で、後半の宛先が `192.168.22.129` に書き換わっていた。向きと書き換えの有無を比べる。
 
 #### 1-7. Client VM から見た接続相手を確かめる（Client VM）
+
+**実行する場所**：1-5 で Windows から `ssh kajih@10.0.0.10` で入った Client VM のシェル。または Mac のターミナルで `ssh debian-client`
 
 1-5 の SSH でログインできた場合、その SSH の中で（または別の SSH で Client VM に入って）次を打つ。
 
