@@ -15,6 +15,7 @@
 | [005](005-ssh-via-jump-host.md) | VMへのSSHは踏み台経由で行う |
 | [006](006-use-ifupdown.md) | ネットワーク設定はifupdownで管理する |
 | [007](007-use-ansible.md) | VMの設定自動化はAnsibleで行う |
+| [008](008-nftables-hook-placement.md) | ファイアウォールは input と forward に、NAT は postrouting に置く |
 
 ---
 
@@ -43,6 +44,9 @@
 | VMのネットワーク設定 | ifupdown（`/etc/network/interfaces`）で管理する | [006](006-use-ifupdown.md) |
 | 設定の自動化 | **Ansible**（手作業で理解した後に書き起こす） | [007](007-use-ansible.md) |
 | VM作成の自動化 | 行わない（Terraformは使用しない） | [007](007-use-ansible.md) |
+| ファイアウォールの置き場所 | **input（Router VM を守る）と forward（LAN 側の機器を守る）** | [008](008-nftables-hook-placement.md) |
+| NAT の置き場所 | **postrouting**（マスカレード）。DNAT（ポート転送）は今は使わない | [008](008-nftables-hook-placement.md) |
+| output の制限 | 行わない | [008](008-nftables-hook-placement.md) |
 | 最初の開発 | Linuxを手動でルーター化 | [README](../../README.md) |
 | 自作Software | Linux機能を理解した後に開発 | [routerd](../../src/routerd/README.md) |
 | Hardware購入 | **現時点では行わない** | [003](003-hardware-later.md) |

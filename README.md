@@ -147,7 +147,9 @@ debian-router-lab/
 │   │   ├── 003-hardware-later.md
 │   │   ├── 004-support-amd64-and-arm64.md
 │   │   ├── 005-ssh-via-jump-host.md
-│   │   └── 006-use-ifupdown.md
+│   │   ├── 006-use-ifupdown.md
+│   │   ├── 007-use-ansible.md
+│   │   └── 008-nftables-hook-placement.md
 │   │
 │   └── tools/
 │       └── editors.md

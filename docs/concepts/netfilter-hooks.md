@@ -150,6 +150,8 @@ Router VM のプログラムが作ったパケットは、① prerouting も ③
 
 labs/04 では ⑤ postrouting に NAT の chain を置きました。labs/05 では ② input と ③ forward にファイアウォールの chain を置きます。
 
+この置き場所は、このラボの設計方針として [ADR 008](../decisions/008-nftables-hook-placement.md) に決めた理由とあわせて記録しています。
+
 今の `/etc/nftables.conf` にある `table inet filter` には、input・forward・output の3つの chain がすでにあります。ただ、中にルールが1つもないので、すべて素通りしています。
 
 ```text
