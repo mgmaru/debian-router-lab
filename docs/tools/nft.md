@@ -1,6 +1,6 @@
 # nft コマンド
 
-nftables を操作するコマンドです。table・chain・rule や関所（フック）の考え方は [docs/concepts/nftables.md](../concepts/nftables.md) を参照してください。
+nftables を操作するコマンドです。table・chain・rule や関所（フック）の考え方は [docs/concepts/kernel/nftables.md](../concepts/kernel/nftables.md) を参照してください。
 
 ## 実行するときの注意
 
@@ -93,7 +93,7 @@ sudo nft add rule ip nat postrouting oifname "ens33" masquerade
 - `add rule` は、chain の**いちばん下**に足す
 - `insert rule` は、chain の**いちばん上**に足す。rule は上から順に見られるので、先に見てほしい rule は `insert` で入れる
 
-`oifname "ens33" masquerade` の詳しい意味（条件が必要な理由など）は、[docs/concepts/nftables.md](../concepts/nftables.md) の「`oifname "ens33" masquerade` の意味」を参照してください。
+`oifname "ens33" masquerade` の詳しい意味（条件が必要な理由など）は、[docs/concepts/kernel/nftables.md](../concepts/kernel/nftables.md) の「`oifname "ens33" masquerade` の意味」を参照してください。
 
 よく使う条件と動作：
 
@@ -127,7 +127,7 @@ sudo nft add rule ip nat postrouting oifname "ens33" masquerade
 | `sudo nft -a list ruleset` | rule ごとに番号（`# handle 3` など）も表示する。rule を1つだけ消すときに使う |
 | `sudo nft list hooks` | 関所ごとに、何が登録されているか（カーネル自身が登録したものも出る） |
 
-`list ruleset` と `list hooks` の違いは、[docs/concepts/nftables.md](../concepts/nftables.md) の「`list ruleset` と `list hooks` の違い」を参照してください。
+`list ruleset` と `list hooks` の違いは、[docs/concepts/kernel/nftables.md](../concepts/kernel/nftables.md) の「`list ruleset` と `list hooks` の違い」を参照してください。
 
 ---
 

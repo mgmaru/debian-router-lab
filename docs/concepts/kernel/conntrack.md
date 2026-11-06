@@ -9,7 +9,7 @@ conntrack（connection tracking、コネクショントラッキング）は、*
 | NAT | 帰りの返事が届いたときに、どの通信の返事かを見つけ、宛先を書き戻す（labs/04） |
 | ファイアウォール | 「すでに始まっている通信の返事は通す」（`ct state established,related accept`）を判断する（labs/05） |
 
-conntrack はカーネルの機能なので、コマンドを何も入れなくても動いています。labs/04 で Client VM の ping の返事が書き戻されたのは、カーネルの conntrack が記録を使ったからです。記録を**見る**には、`conntrack` コマンドを使います（[docs/tools/conntrack.md](../tools/conntrack.md)）。
+conntrack はカーネルの機能なので、コマンドを何も入れなくても動いています。labs/04 で Client VM の ping の返事が書き戻されたのは、カーネルの conntrack が記録を使ったからです。記録を**見る**には、`conntrack` コマンドを使います（[docs/tools/conntrack.md](../../tools/conntrack.md)）。
 
 ---
 
@@ -141,7 +141,7 @@ NAT が「ローカルネットワークへ送る」のではありません。�
 
 Client が2台あって、2台とも 8.8.8.8 へ ping を送ると、返事はどちらも `src=8.8.8.8 dst=192.168.22.129` で届きます。IP だけでは、どちらの返事か区別できません。
 
-そこで、ICMP の id（TCP/UDP ならポート番号）も含めて比べます。id がぶつかった場合は、行きのときに NAT が id をずらして、後半が重ならないようにします（[質問63 の補足1](../questions/2026-11-05-nat-rewrites-header-field.md)）。
+そこで、ICMP の id（TCP/UDP ならポート番号）も含めて比べます。id がぶつかった場合は、行きのときに NAT が id をずらして、後半が重ならないようにします（[質問63 の補足1](../../questions/2026-11-05-nat-rewrites-header-field.md)）。
 
 ---
 
@@ -166,7 +166,7 @@ NAT とファイアウォールが使う**通信の記録**は、conntrack の�
 | Client VM から 8.8.8.8 への ping | **載る** | **載らない**（Router VM のプログラムは関わっていない） |
 | Mac から Router VM への SSH | 載る | 載る |
 
-転送するパケットは、カーネル空間の中だけで処理されます（[nftables の「カーネル空間とユーザー空間」](nftables.md)）。そのため、Router VM 自身のプログラムの通信を記録するソケットの表には出てきません。転送する通信を覚えているのは、conntrack の表だけです。
+転送するパケットは、カーネル空間の中だけで処理されます（[Linux カーネルの「カーネル空間とユーザー空間」](README.md#カーネル空間とユーザー空間)）。そのため、Router VM 自身のプログラムの通信を記録するソケットの表には出てきません。転送する通信を覚えているのは、conntrack の表だけです。
 
 ---
 
@@ -176,7 +176,7 @@ NAT とファイアウォールが使う**通信の記録**は、conntrack の�
 
 | 方法 | 説明 |
 |---|---|
-| `conntrack` コマンド | いちばん一般的（[docs/tools/conntrack.md](../tools/conntrack.md)） |
+| `conntrack` コマンド | いちばん一般的（[docs/tools/conntrack.md](../../tools/conntrack.md)） |
 | `/proc/net/nf_conntrack` | 記録をファイルの形で読める。ただし Debian では、カーネルの設定によって**このファイルが無い**ことがある |
 | `conntrackd` | 2台のルーターの間で、記録を同期するプログラム。1台が故障したときに、もう1台が通信を引き継げるようにする |
 
@@ -186,7 +186,7 @@ NAT とファイアウォールが使う**通信の記録**は、conntrack の�
 
 ## 関連
 
-- [NAT](nat.md)：NAT の本質、行きの書き換えと帰りの書き戻し
+- [NAT](../nat.md)：NAT の本質、行きの書き換えと帰りの書き戻し
 - [nftables](nftables.md)：関所（フック）、`list hooks` の読み方
-- [docs/tools/conntrack.md](../tools/conntrack.md)：`conntrack` コマンドの使い方
-- [labs/04-nat](../../labs/04-nat/README.md)
+- [docs/tools/conntrack.md](../../tools/conntrack.md)：`conntrack` コマンドの使い方
+- [labs/04-nat](../../../labs/04-nat/README.md)

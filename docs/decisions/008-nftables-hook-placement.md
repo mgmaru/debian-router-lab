@@ -8,7 +8,7 @@ Accepted
 
 Router VM のファイアウォールと NAT は、nftables で設定する。nftables の rule は chain に入れ、chain はカーネルの関所（Netfilter のフック）に置く。
 
-IPv4 の関所は5つある（[netfilter-hooks.md](../concepts/netfilter-hooks.md)）。
+IPv4 の関所は5つある（[netfilter-hooks.md](../concepts/kernel/netfilter-hooks.md)）。
 
 | 関所 | 通るパケット | その時点でわかっていること |
 |---|---|---|

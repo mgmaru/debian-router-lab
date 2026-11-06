@@ -1,6 +1,6 @@
 # conntrack コマンド
 
-カーネルの conntrack の表（通信の記録）を、見たり操作したりするコマンドです。conntrack の仕組みは [docs/concepts/conntrack.md](../concepts/conntrack.md) を参照してください。
+カーネルの conntrack の表（通信の記録）を、見たり操作したりするコマンドです。conntrack の仕組みは [docs/concepts/kernel/conntrack.md](../concepts/kernel/conntrack.md) を参照してください。
 
 ## インストール
 

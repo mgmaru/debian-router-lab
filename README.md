@@ -135,10 +135,15 @@ debian-router-lab/
 │   │   ├── routing.md
 │   │   ├── neighbor.md
 │   │   ├── nat.md
-│   │   ├── netfilter-hooks.md
 │   │   ├── firewall.md
 │   │   ├── dhcp.md
-│   │   └── dns.md
+│   │   ├── dns.md
+│   │   └── kernel/
+│   │       ├── README.md
+│   │       ├── packet-path.md
+│   │       ├── netfilter-hooks.md
+│   │       ├── conntrack.md
+│   │       └── nftables.md
 │   │
 │   ├── decisions/
 │   │   ├── README.md
@@ -254,6 +259,8 @@ debian-router-lab/
 ### `docs/concepts/`
 
 各ネットワーク技術の概念を整理します。
+
+Linux カーネルの中の仕組み（パケットの処理の流れ、関所、conntrack、nftables）は、`docs/concepts/kernel/` に分けて整理します。
 
 ```text
 docs/concepts/routing.md

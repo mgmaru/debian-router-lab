@@ -4,9 +4,9 @@
 
 関連：
 
-- [関所（Netfilter のフック）](../concepts/netfilter-hooks.md)（5つの関所と、パケットが通る3つの道）
-- [conntrack](../concepts/conntrack.md)（通信の記録の表、1行が前半と後半の2つの向きでできていること）
-- [nftables](../concepts/nftables.md)
+- [関所（Netfilter のフック）](../concepts/kernel/netfilter-hooks.md)（5つの関所と、パケットが通る3つの道）
+- [conntrack](../concepts/kernel/conntrack.md)（通信の記録の表、1行が前半と後半の2つの向きでできていること）
+- [nftables](../concepts/kernel/nftables.md)
 - [labs/05-firewall](../../labs/05-firewall/README.md)
 - [WANの入口は攻撃者の標的になるのか](2026-10-08-is-wan-entrance-a-target.md)
 

@@ -150,7 +150,7 @@ Router VM のプログラムが作ったパケットは、① prerouting も ③
 
 labs/04 では ⑤ postrouting に NAT の chain を置きました。labs/05 では ② input と ③ forward にファイアウォールの chain を置きます。
 
-この置き場所は、このラボの設計方針として [ADR 008](../decisions/008-nftables-hook-placement.md) に決めた理由とあわせて記録しています。
+この置き場所は、このラボの設計方針として [ADR 008](../../decisions/008-nftables-hook-placement.md) に決めた理由とあわせて記録しています。
 
 今の `/etc/nftables.conf` にある `table inet filter` には、input・forward・output の3つの chain がすでにあります。ただ、中にルールが1つもないので、すべて素通りしています。
 
@@ -184,7 +184,7 @@ NAT もファイアウォールも、**nftables の rule を chain に入れ、�
 | 設定する道具 | `nft` | `nft` |
 | 設定ファイル | `/etc/nftables.conf` | `/etc/nftables.conf`（同じファイル） |
 | chain の type | `filter` | `nat` |
-| 置く関所（[ADR 008](../decisions/008-nftables-hook-placement.md)） | input・forward | postrouting |
+| 置く関所（[ADR 008](../../decisions/008-nftables-hook-placement.md)） | input・forward | postrouting |
 | rule の動作 | 通す・捨てる（`accept`・`drop`） | 書き換える（`masquerade` など） |
 
 違うのは chain の type と、rule で何をするか（止めるか、書き換えるか）だけです。`nftables.conf` に `table inet filter` と `table ip nat` が並んでいるのはこのためです。
@@ -224,7 +224,7 @@ NAT もファイアウォールも、**nftables の rule を chain に入れ、�
 
 関所に置く rule は、この流れの途中で「通す・捨てる・書き換える」を担当する部分だけです。出口を決めることや、転送するかどうかを切り替えることは、関所の外で行われます。
 
-カーネルの動き方を決めるもの（プログラムそのもの・設定値・参照する表やルール）の整理は、[nftables.md の「カーネルの動き方を決める3種類のもの」](nftables.md#カーネルの動き方を決める3種類のもの) にあります。
+カーネルの動き方を決めるもの（プログラムそのもの・設定値・参照する表やルール）の整理は、[Linux カーネルの「カーネルの動き方を決める3種類のもの」](README.md#カーネルの動き方を決める3種類のもの) にあります。
 
 ---
 
@@ -268,5 +268,5 @@ NAT をしていても、③ forward では **Client VM の本当のアドレス
 
 - [nftables](nftables.md)：関所の正体、`nft list hooks` での確認方法、table・chain・rule
 - [conntrack](conntrack.md)：返事かどうかを見分けるための通信の記録
-- [NAT](nat.md)：⑤ postrouting で送信元を書き換える仕組み
-- [labs/05-firewall](../../labs/05-firewall/README.md)：② input と ③ forward にルールを置く実験
+- [NAT](../nat.md)：⑤ postrouting で送信元を書き換える仕組み
+- [labs/05-firewall](../../../labs/05-firewall/README.md)：② input と ③ forward にルールを置く実験

@@ -51,11 +51,12 @@
 
 ## ファイアウォール
 
-まとまった説明：[netfilter-hooks.md](../concepts/netfilter-hooks.md)、[conntrack.md](../concepts/conntrack.md)
+まとまった説明：[firewall.md](../concepts/firewall.md)、[netfilter-hooks.md](../concepts/kernel/netfilter-hooks.md)、[conntrack.md](../concepts/kernel/conntrack.md)
 
 | 疑問 | 日付 |
 |---|---|
 | [ルーターは「返事」と「外からの新しい接続」をどう区別するのか：forward は関所か、LAN → WAN と WAN → LAN の見分け方、conntrack の判定と ct state](2026-11-06-reply-vs-new-connection.md) | 2026-11-06 |
+| [rule の順番で結果はどう変わるのか：先に当たった rule で決まることと、ファイアウォール管理ソフトウェアで順番を扱うときの考え方](2026-11-06-rule-order-changes-result.md) | 2026-11-06 |
 
 ## 設定ファイル・永続化
 

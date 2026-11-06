@@ -1,6 +1,6 @@
 # ファイアウォール
 
-ファイアウォールは、**パケットを通すか捨てるかを、rule で決める仕組み**です。Linux では nftables の rule を関所（input・forward）に置いて実現します（[関所（Netfilter のフック）](netfilter-hooks.md)、[ADR 008](../decisions/008-nftables-hook-placement.md)）。
+ファイアウォールは、**パケットを通すか捨てるかを、rule で決める仕組み**です。Linux では nftables の rule を関所（input・forward）に置いて実現します（[関所（Netfilter のフック）](kernel/netfilter-hooks.md)、[ADR 008](../decisions/008-nftables-hook-placement.md)）。
 
 このドキュメントでは、次の2つをまとめます。
 
@@ -17,8 +17,23 @@ Router VM で実際に rule を書く手順は [labs/05-firewall](../../labs/05-
 
 chain の中には rule が並んでいます。パケットが関所に来ると、**上から順に**1行ずつ調べられます。
 
+ただし、パケットは関所に来る前に、カーネルの処理を通って**下調べ**が済んでいます。rule はその結果を使って条件を調べます。カーネルの処理の流れ全体は [パケットの処理の流れ](kernel/packet-path.md) にあります。
+
 ```text
- パケットが来た
+ NIC にパケットが届く
+     │
+     ▼
+ ┌─ カーネルの下調べ（関所に来る前）
+ │  NIC ドライバー    ：どの NIC に届いたかを記録する                  → iifname で使う
+ │  Ethernet の処理   ：中身が IPv4 か IPv6 かを判断する
+ │  IP の処理         ：IP ヘッダーが壊れていないか確かめる（壊れていれば捨てる）
+ │                     TCP・UDP・ICMP のどれか、そのヘッダーの位置を記録する
+ │  conntrack         ：返事か新しい接続かを決める（① prerouting）     → ct state で使う
+ │  ルーティング判断   ：自分宛てか転送かと、出ていく NIC を決める       → oifname で使う（forward のみ）
+ └─
+     │
+     ▼
+ パケットが関所（input・forward）の chain に来た
      │
      ▼
  ┌─ rule 1 ── 条件に当たる？ ── はい ──→ 動作を実行（accept なら通す・drop なら捨てる）→ 終わり
@@ -43,6 +58,29 @@ chain の中には rule が並んでいます。パケットが関所に来る�
 | 当たらなければ次の行へ | 条件に合わない rule は飛ばして、次の rule を調べる |
 | 最後まで当たらなければ policy | chain に書いた `policy` で決まる |
 
+### 下調べと、rule が読む欄の分担
+
+カーネルの下調べは、基本的なことだけです。ポート番号のような細かい欄は、**各 rule が、自分に必要な欄だけを、調べるときにそのつど**パケットから読みます。
+
+| | カーネルの下調べ（関所に来る前） | rule（関所で調べるとき） |
+|---|---|---|
+| いつ | パケットが届いたときに1回 | rule 1 つごとに |
+| 何を調べるか | 届いた NIC、IPv4 か IPv6 か、ヘッダーが正しい形か、プロトコルとヘッダーの位置、`ct state`、出ていく NIC | その rule の条件に必要な欄だけ（`tcp dport 22` なら、プロトコルと宛先ポートの欄） |
+
+たとえば `tcp dport 22 accept` は、カーネルの中では次の手順になります（`sudo nft --debug=netlink add rule ...` で見られます）。
+
+```text
+ [ meta load l4proto => reg 1 ]                       ← プロトコルの番号を読む
+ [ cmp eq reg 1 0x00000006 ]                          ← 6（TCP）でなければ当たらない → 次の rule へ
+ [ payload load 2b @ transport header + 2 => reg 1 ]  ← TCP ヘッダーの 2 バイト目から 2 バイト（宛先ポートの欄）を読む
+ [ cmp eq reg 1 0x00001600 ]                          ← 22 でなければ当たらない → 次の rule へ
+ [ immediate reg 0 accept ]                           ← ここまで来たら accept
+```
+
+「TCP ヘッダーがどこから始まるか」（`transport header`）は、下調べで記録された位置を使っています。
+
+カーネルが見ているのは、ヘッダーの欄の**値**だけです。「SSH のパケット」は、カーネルにとっては「TCP で、宛先ポートの欄が 22」のパケットです。中身が SSH でなくても、宛先ポートが 22 なら `tcp dport 22` の rule に当たります。
+
 ### rule の形：条件と動作
 
 1つの rule は「**条件**」と「**動作**」でできています。
@@ -59,7 +97,7 @@ chain の中には rule が並んでいます。パケットが関所に来る�
 | `oifname "ens33"` | 出ていく NIC が ens33 |
 | `ip saddr 10.0.0.0/24` | 送信元の IP が 10.0.0.0/24 の範囲 |
 | `tcp dport 22` | TCP の宛先ポートが 22（SSH） |
-| `ct state established,related` | conntrack の判定が「返事」か「関係するパケット」（[conntrack.md](conntrack.md)） |
+| `ct state established,related` | conntrack の判定が「返事」か「関係するパケット」（[conntrack.md](kernel/conntrack.md)） |
 | `ip protocol icmp` | ICMP（ping など） |
 
 条件を複数書くと、**すべてに当たったとき**だけ動作が実行されます（「かつ」の意味）。条件を1つも書かなければ、すべてのパケットが当たります。
@@ -184,7 +222,7 @@ chain forward {
 
 ### デフォルト拒否で、必ず最初に許可するもの
 
-デフォルト拒否にすると、**返事も止まります**。返事も1つのパケットとして関所を通るからです（[netfilter-hooks.md](netfilter-hooks.md#返事も同じように関所を通る)）。そのため、ほぼ必ず先頭に次の rule を置きます。
+デフォルト拒否にすると、**返事も止まります**。返事も1つのパケットとして関所を通るからです（[netfilter-hooks.md](kernel/netfilter-hooks.md#返事も同じように関所を通る)）。そのため、ほぼ必ず先頭に次の rule を置きます。
 
 ```text
 ct state established,related accept
@@ -236,9 +274,9 @@ input で許可が要るもの（loopback・ICMP・SSH、のちの DHCP・DNS）
 
 ## 関連
 
-- [関所（Netfilter のフック）](netfilter-hooks.md)：rule を置く場所と、パケットが通る道
+- [関所（Netfilter のフック）](kernel/netfilter-hooks.md)：rule を置く場所と、パケットが通る道
 - [ADR 008](../decisions/008-nftables-hook-placement.md)：ファイアウォールを input と forward に置く理由
-- [conntrack](conntrack.md)：`ct state` の判定に使う通信の記録
-- [nftables](nftables.md)：table・chain・rule の入れ物の関係
+- [conntrack](kernel/conntrack.md)：`ct state` の判定に使う通信の記録
+- [nftables](kernel/nftables.md)：table・chain・rule の入れ物の関係
 - [ルーターは「返事」と「外からの新しい接続」をどう区別するのか](../questions/2026-11-06-reply-vs-new-connection.md)
 - [labs/05-firewall](../../labs/05-firewall/README.md)

@@ -30,7 +30,7 @@ nftables
 
 nftables で設定し、`/etc/nftables.conf` ＋ `systemctl enable nftables` で永続化する。
 
-NAT の仕組みと、NAT が無いときに返事が戻らない理由は [docs/concepts/nat.md](../../docs/concepts/nat.md) に、nftables の table・chain・rule と関所（フック）は [docs/concepts/nftables.md](../../docs/concepts/nftables.md) に、`nft` コマンドの形式は [docs/tools/nft.md](../../docs/tools/nft.md) に、conntrack の記録の仕組みは [docs/concepts/conntrack.md](../../docs/concepts/conntrack.md) にまとめた。
+NAT の仕組みと、NAT が無いときに返事が戻らない理由は [docs/concepts/nat.md](../../docs/concepts/nat.md) に、nftables の table・chain・rule と関所（フック）は [docs/concepts/kernel/nftables.md](../../docs/concepts/kernel/nftables.md) に、`nft` コマンドの形式は [docs/tools/nft.md](../../docs/tools/nft.md) に、conntrack の記録の仕組みは [docs/concepts/kernel/conntrack.md](../../docs/concepts/kernel/conntrack.md) にまとめた。
 
 ## Topology
 
