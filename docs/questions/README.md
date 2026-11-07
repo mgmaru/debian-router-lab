@@ -59,6 +59,7 @@
 | [rule の順番で結果はどう変わるのか：先に当たった rule で決まることと、ファイアウォール管理ソフトウェアで順番を扱うときの考え方](2026-11-06-rule-order-changes-result.md) | 2026-11-06 |
 | [policy は必ず使われるのか：書く場所と使われるタイミング、rule で決まったパケットとの関係、policy は強いルールか](2026-11-06-when-policy-is-used.md) | 2026-11-06 |
 | [labs/05 の準備は何のためか、WAN → Client VM の接続は止めるのか、forward を止めると管理用の SSH は切れるのか：ProxyJump の区間ごとの接続と通る関所](2026-11-06-labs05-prep-and-ssh-path.md) | 2026-11-06 |
+| [関所の forward と ip_forward は違うのか：設定値と関所の違い、通路と検査場、両方が要る理由](2026-11-07-forward-hook-vs-ip-forward.md) | 2026-11-07 |
 
 ## 設定ファイル・永続化
 
